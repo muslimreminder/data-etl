@@ -72,3 +72,14 @@ describe('toCollection', () => {
         expect(collection.attribution).toEqual({ source: 'sunnah.com', sourceUrl: 'https://sunnah.com', retrievedAt: '2026-09-24T12:00:00.000Z' });
     });
 });
+
+describe('collections without chapters', () => {
+    it('drops untitled chapter ids silently', () => {
+        const warnings: string[] = [];
+        const untitled = rawHadiths.filter((h) => h.hadithNumber === '3b');
+        const file = toBookFile('bukhari', rawBook, 1, [], untitled, (message) => warnings.push(message));
+        expect(file?.hadiths[0]?.chapterId).toBeUndefined();
+        expect(file?.chapters).toEqual([]);
+        expect(warnings).toEqual([]);
+    });
+});

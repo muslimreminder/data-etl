@@ -157,8 +157,9 @@ export function toBookFile(
             warn(`${where}: no ar/en text, skipped`);
             continue;
         }
-        // "0.00" is sunnah.com's "no chapter" (e.g. Musnad Ahmad).
-        if (raw.chapterId && raw.chapterId !== NO_CHAPTER && !hadith.chapterId) {
+        // "0.00" is sunnah.com's "no chapter" (e.g. Musnad Ahmad). Collections without chapters
+        // (Shamail, Forty: each book is the chapter) still send untitled ids: nothing to report.
+        if (raw.chapterId && raw.chapterId !== NO_CHAPTER && rawChapters.length > 0 && !hadith.chapterId) {
             warn(`${where}: unknown chapter ${raw.chapterId}, chapter dropped`);
         }
         ids.add(hadith.id);
