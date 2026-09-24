@@ -37,7 +37,7 @@ describe('SunnahClient', () => {
     });
 
     it('fails on an unexpected response shape', async () => {
-        const { fetch } = fakeFetch([json({ error: { code: 404 } })]);
+        const { fetch } = fakeFetch([json({ items: [] })]);
         const client = new SunnahClient({ apiKey: 'k', minIntervalMs: 0, fetch });
         await expect(client.books('bukhari')).rejects.toThrow(/Unexpected sunnah.com response/);
     });
@@ -53,4 +53,22 @@ describe('SunnahClient', () => {
         const client = new SunnahClient({ apiKey: 'k', minIntervalMs: 0, maxRequests: 1, fetch });
         await expect(client.books('bukhari')).rejects.toThrow(/daily quota/);
     });
+
+    it('recovers a page broken by one item, item by item', async () => {
+        const broken = () => json({ error: { details: 'internal error', code: 500 } });
+        const single = (id: string, position: number) =>
+            json({ data: [book(id)], total: 3, limit: 1, previous: null, next: position < 3 ? position + 1 : null });
+        const logs: string[] = [];
+        const { fetch, urls } = fakeFetch([
+            broken(), broken(), broken(), // page 1 (limit 100): retried, still broken
+            broken(), broken(), broken(), // item 1: broken
+            single('2', 2),
+            single('3', 3),
+        ]);
+        const client = new SunnahClient({ apiKey: 'k', minIntervalMs: 0, fetch, log: (m) => logs.push(m) });
+
+        expect((await client.books('bukhari')).map((b) => b.bookNumber)).toEqual(['2', '3']);
+        expect(urls.at(-1)).toBe('https://api.sunnah.com/v1/collections/bukhari/books?limit=1&page=3');
+        expect(logs.at(-1)).toContain('item 1 is broken');
+    }, 20_000);
 });
