@@ -1,0 +1,26 @@
+{
+  "name": "data-etl",
+  "private": true,
+  "description": "Fetches Muslim Reminder content from external sources, formats it with @muslimreminder/schema and publishes it to Cloudflare R2 (cdn.muslim-reminder.com).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "etl": "node src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1139.0",
+    "@muslimreminder/schema": "0.1.0",
+    "entities": "8.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

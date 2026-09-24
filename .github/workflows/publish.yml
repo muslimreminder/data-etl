@@ -1,0 +1,55 @@
+name: Publish content
+
+on:
+  workflow_dispatch:
+    inputs:
+      collections:
+        description: 'sunnah.com collections to rebuild, comma-separated (empty = all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Build and compare only, upload nothing'
+        type: boolean
+        default: false
+  schedule:
+    # Monthly: hadith collections rarely change, and sunnah.com allows 5,000 requests/day.
+    - cron: '0 3 1 * *'
+
+permissions:
+  contents: read
+
+# Never two runs at once: they would race on the manifest and share the API quota.
+concurrency:
+  group: publish-content
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Publish to R2
+        env:
+          SUNNAH_API_KEY: ${{ secrets.SUNNAH_API_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          COLLECTIONS: ${{ inputs.collections }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: npm run etl -- --target r2 ${COLLECTIONS:+--collections "$COLLECTIONS"} $DRY_RUN | tee etl.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### Publish content'
+            echo '```'
+            grep -vE '^⚠️' etl.log | tail -n 40 || true
+            echo '```'
+            echo "Warnings: $(grep -c '^⚠️' etl.log || true)"
+          } >> "$GITHUB_STEP_SUMMARY"
