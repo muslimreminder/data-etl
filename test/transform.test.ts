@@ -25,26 +25,41 @@ describe('toBookFile', () => {
         expect(first?.texts.ar?.grades).toEqual([]);
     });
 
-    it('drops duplicates and hadiths without text, and reports them', () => {
-        const { file, warnings } = build();
-        expect(file.hadiths.map((hadith) => hadith.number)).toEqual(['1', '2', '3']);
-        expect(file.book.hadithCount).toBe(3);
-        expect(warnings).toEqual([
-            'bukhari/1 #2: duplicate number, skipped',
-            'bukhari/1 #3: unknown chapter 9.00, chapter dropped',
-            'bukhari/1 #4: no ar/en text, skipped',
+    it('keeps alternative chains sharing a number, identified by urn', () => {
+        const { file } = build();
+        expect(file.hadiths.map((hadith) => [hadith.id, hadith.number])).toEqual([
+            ['100010', '1'],
+            ['100020', '2'],
+            ['100021', '2'],
+            ['100030', '3'],
+            ['100035', '3b'],
         ]);
+        expect(file.book.hadithCount).toBe(5);
+    });
+
+    it('drops duplicated urns, hadiths without text or number, and reports them', () => {
+        expect(build().warnings).toEqual([
+            'bukhari/1 #2: duplicate urn 100021, skipped',
+            'bukhari/1 #3b: unknown chapter 8.00, chapter dropped',
+            'bukhari/1 #4: no ar/en text, skipped',
+            'bukhari/1 #? (urn 100050): no number, skipped',
+        ]);
+    });
+
+    it('names chapters missing from the endpoint from the hadiths themselves', () => {
+        const chapter = build().file.chapters.find((c) => c.id === '9.00');
+        expect(chapter).toEqual({ id: '9.00', title: { en: 'Chapter from the hadith' } });
     });
 
     it('keeps used chapters only, with a fallback for empty titles', () => {
         const { file } = build();
-        expect(file.chapters.map((chapter) => chapter.id)).toEqual(['1.00', '2.00']);
+        expect(file.chapters.map((chapter) => chapter.id)).toEqual(['1.00', '2.00', '9.00']);
         expect(file.chapters[1]?.title).toEqual({ ar: 'باب' });
         expect(file.chapters[0]?.intro?.en).toBe('And the Statement of Allah: "Verily, We have sent the revelation to you" (V.4:163)');
     });
 
     it('returns nothing for a book without usable hadith', () => {
-        expect(toBookFile('bukhari', rawBook, 1, [], [rawHadiths[4]!], () => {})).toBeUndefined();
+        expect(toBookFile('bukhari', rawBook, 1, [], rawHadiths.filter((h) => h.hadithNumber === '4'), () => {})).toBeUndefined();
     });
 });
 

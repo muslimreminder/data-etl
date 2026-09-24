@@ -106,9 +106,8 @@ export async function buildHadithFiles(client: SunnahClient, options: BuildHadit
 function recoverFromDump(dump: SunnahDump | undefined, rawBook: RawBook, collection: string, rawHadiths: RawHadith[]): RawHadith[] {
     if (!dump || rawHadiths.length >= (rawBook.numberOfHadith ?? 0)) return [];
     const urns = new Set(rawHadiths.flatMap((raw) => raw.hadith.map((entry) => entry.urn)));
-    const numbers = new Set(rawHadiths.map((raw) => raw.hadithNumber));
     return dumpBook(dump, collection, rawBook.bookNumber)
-        .filter((record) => !urns.has(record.arabicUrn) && !numbers.has(record.hadithNumber))
+        .filter((record) => !urns.has(record.arabicUrn))
         .map(toRawHadith);
 }
 

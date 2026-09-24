@@ -54,26 +54,39 @@ export const rawChapters: RawChapter[] = [
     },
 ];
 
-const hadith = (number: string, chapterId: string | null, en: string | null, ar: string | null): RawHadith => ({
+const hadith = (
+    urn: number,
+    number: string,
+    chapterId: string | null,
+    en: string | null,
+    ar: string | null,
+    chapterTitle: string | null = null,
+): RawHadith => ({
     collection: 'bukhari',
     bookNumber: '1',
     chapterId,
     hadithNumber: number,
     hadith: [
-        { lang: 'en', chapterNumber: '1', chapterTitle: null, urn: 10, body: en, grades: [{ graded_by: null, grade: 'Sahih' }] },
-        { lang: 'ar', chapterNumber: '1', chapterTitle: null, urn: 100010, body: ar, grades: [] },
+        { lang: 'en', chapterNumber: '1', chapterTitle, urn, body: en, grades: [{ graded_by: null, grade: 'Sahih' }] },
+        { lang: 'ar', chapterNumber: '1', chapterTitle: null, urn: 100000 + urn, body: ar, grades: [] },
     ],
 });
 
 export const rawHadiths: RawHadith[] = [
     hadith(
+        10,
         '1',
         '1.00',
         "<p>Narrated 'Umar bin Al-Khattab:\n</p>\n<p>\n I heard Allah's Messenger (ﷺ) saying, &quot;The reward of deeds depends upon the \n intentions.&quot;\n</p>",
         '<p>حَدَّثَنَا الْحُمَيْدِيُّ ... إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ</p>',
     ),
-    hadith('2', '2.00', '<p>Narrated Aisha:</p><p>Line one<br/>Line two</p>', null),
-    hadith('2', '2.00', '<p>Duplicate of 2</p>', null),
-    hadith('3', '9.00', '<p>Hadith in an unknown chapter</p>', null),
-    hadith('4', '1.00', null, '   '),
+    hadith(20, '2', '2.00', '<p>Narrated Aisha:</p><p>Line one<br/>Line two</p>', null),
+    // Same number, other chain: a distinct hadith.
+    hadith(21, '2', '2.00', '<p>Narrated with another chain</p>', null),
+    hadith(21, '2', '2.00', '<p>Same urn served twice</p>', null),
+    // Chapter absent from the chapters endpoint, named in the hadith.
+    hadith(30, '3', '9.00', '<p>Hadith in a chapter known from the hadith</p>', null, 'Chapter from the hadith'),
+    hadith(35, '3b', '8.00', '<p>Hadith in an unknown chapter</p>', null),
+    hadith(40, '4', '1.00', null, '   '),
+    hadith(50, ' ', '1.00', '<p>No number</p>', null),
 ];

@@ -79,6 +79,21 @@ function toGrades(raw: RawHadith['hadith'][number]['grades']): HadithGrade[] {
         .filter((grade) => grade.grade.length > 0);
 }
 
+/** sunnah.com URN, unique in the collection: the Arabic one, else the English one. */
+export const hadithUrn = (raw: RawHadith) =>
+    raw.hadith.find((entry) => entry.lang === 'ar')?.urn ?? raw.hadith.find((entry) => entry.lang === 'en')?.urn ?? undefined;
+
+/** Chapters named in the hadiths themselves, for collections without a chapters endpoint (e.g. Shamail). */
+export function chaptersFromHadiths(rawHadiths: RawHadith[], known: ReadonlySet<string>): HadithChapter[] {
+    const chapters = new Map<string, HadithChapter>();
+    for (const raw of rawHadiths) {
+        if (!raw.chapterId || raw.chapterId === NO_CHAPTER || known.has(raw.chapterId) || chapters.has(raw.chapterId)) continue;
+        const title = localized(raw.hadith, (entry) => entry.chapterTitle);
+        if (title) chapters.set(raw.chapterId, { id: raw.chapterId, title });
+    }
+    return [...chapters.values()];
+}
+
 export function toHadith(raw: RawHadith, chapterIds: ReadonlySet<string>, dump?: SunnahDump): Hadith | undefined {
     const texts: Record<string, HadithText> = {};
     for (const entry of raw.hadith) {
@@ -94,6 +109,7 @@ export function toHadith(raw: RawHadith, chapterIds: ReadonlySet<string>, dump?:
         return undefined;
     }
     return {
+        id: String(hadithUrn(raw)),
         collectionId: raw.collection,
         bookId: raw.bookNumber,
         number: raw.hadithNumber,
@@ -115,19 +131,25 @@ export function toBookFile(
     warn: (message: string) => void,
     dump?: SunnahDump,
 ): HadithBookFile | undefined {
-    const chapters = uniqueBy(rawChapters.map(toChapter), (chapter) => chapter.id);
+    const fromEndpoint = uniqueBy(rawChapters.map(toChapter), (chapter) => chapter.id);
+    const chapters = [...fromEndpoint, ...chaptersFromHadiths(rawHadiths, new Set(fromEndpoint.map((chapter) => chapter.id)))];
     const chapterIds = new Set(chapters.map((chapter) => chapter.id));
 
     const hadiths: Hadith[] = [];
-    const numbers = new Set<string>();
+    const ids = new Set<string>();
     for (const raw of rawHadiths) {
-        const where = `${collectionId}/${rawBook.bookNumber} #${raw.hadithNumber}`;
+        const where = `${collectionId}/${rawBook.bookNumber} #${raw.hadithNumber.trim() || '?'}`;
         if (raw.collection !== collectionId || raw.bookNumber !== rawBook.bookNumber) {
             warn(`${where}: belongs to ${raw.collection}/${raw.bookNumber}, skipped`);
             continue;
         }
-        if (numbers.has(raw.hadithNumber)) {
-            warn(`${where}: duplicate number, skipped`);
+        const urn = hadithUrn(raw);
+        if (!raw.hadithNumber.trim() || urn === undefined) {
+            warn(`${where} (urn ${urn ?? '?'}): no ${urn === undefined ? 'urn' : 'number'}, skipped`);
+            continue;
+        }
+        if (ids.has(String(urn))) {
+            warn(`${where}: duplicate urn ${urn}, skipped`);
             continue;
         }
         const hadith = toHadith(raw, chapterIds, dump);
@@ -139,7 +161,7 @@ export function toBookFile(
         if (raw.chapterId && raw.chapterId !== NO_CHAPTER && !hadith.chapterId) {
             warn(`${where}: unknown chapter ${raw.chapterId}, chapter dropped`);
         }
-        numbers.add(raw.hadithNumber);
+        ids.add(hadith.id);
         hadiths.push(hadith);
     }
     if (hadiths.length === 0) {
