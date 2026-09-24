@@ -32,3 +32,14 @@ describe('htmlToText on plain text', () => {
         expect(htmlToText('First <i>one</i>.\r\n\r\nSecond\r\n\r\n\r\nThird')).toBe('First one.\n\nSecond\n\nThird');
     });
 });
+
+describe('sunnah.com markup', () => {
+    it('drops editorial tags but keeps the text', () => {
+        expect(htmlToText('فَقَالَ [quran sura="96" aya_start="1" aya_end="3"]{اقْرَأْ}')).toBe('فَقَالَ {اقْرَأْ}');
+        expect(htmlToText('[narrator id="4698" role="first" tooltip="الحميدي"]الْحُمَيْدِيُّ[/narrator]')).toBe('الْحُمَيْدِيُّ');
+    });
+
+    it('keeps translator notes in brackets', () => {
+        expect(htmlToText('He [the Prophet] said [i.e. twice].')).toBe('He [the Prophet] said [i.e. twice].');
+    });
+});

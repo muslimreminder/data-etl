@@ -65,6 +65,16 @@ export class R2Storage implements ContentStorage {
         }
     }
 
+    async getBytes(path: string): Promise<Uint8Array | undefined> {
+        try {
+            const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: path }));
+            return await object.Body?.transformToByteArray();
+        } catch (error) {
+            if (error instanceof NoSuchKey) return undefined;
+            throw error;
+        }
+    }
+
     async exists(path: string) {
         try {
             await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: path }));

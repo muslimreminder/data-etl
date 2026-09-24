@@ -8,6 +8,7 @@ import type {
     HadithText,
     Hadith,
 } from '@muslimreminder/schema/content';
+import { segmentsFor, type SunnahDump } from './dump.ts';
 import type { RawBook, RawChapter, RawCollection, RawHadith } from './raw.ts';
 import { htmlToText, splitNarrator } from './text.ts';
 
@@ -78,7 +79,7 @@ function toGrades(raw: RawHadith['hadith'][number]['grades']): HadithGrade[] {
         .filter((grade) => grade.grade.length > 0);
 }
 
-export function toHadith(raw: RawHadith, chapterIds: ReadonlySet<string>): Hadith | undefined {
+export function toHadith(raw: RawHadith, chapterIds: ReadonlySet<string>, dump?: SunnahDump): Hadith | undefined {
     const texts: Record<string, HadithText> = {};
     for (const entry of raw.hadith) {
         const text = entry.body ? htmlToText(entry.body) : '';
@@ -86,7 +87,8 @@ export function toHadith(raw: RawHadith, chapterIds: ReadonlySet<string>): Hadit
             continue;
         }
         const { narrator, body } = entry.lang === 'en' ? splitNarrator(text) : { body: text };
-        texts[entry.lang] = { ...(narrator && { narrator }), body, grades: toGrades(entry.grades) };
+        const segments = entry.lang === 'ar' && entry.urn ? segmentsFor(dump?.byArabicUrn.get(entry.urn), body) : undefined;
+        texts[entry.lang] = { ...(narrator && { narrator }), body, ...(segments && { segments }), grades: toGrades(entry.grades) };
     }
     if (Object.keys(texts).length === 0) {
         return undefined;
@@ -111,6 +113,7 @@ export function toBookFile(
     rawChapters: RawChapter[],
     rawHadiths: RawHadith[],
     warn: (message: string) => void,
+    dump?: SunnahDump,
 ): HadithBookFile | undefined {
     const chapters = uniqueBy(rawChapters.map(toChapter), (chapter) => chapter.id);
     const chapterIds = new Set(chapters.map((chapter) => chapter.id));
@@ -127,7 +130,7 @@ export function toBookFile(
             warn(`${where}: duplicate number, skipped`);
             continue;
         }
-        const hadith = toHadith(raw, chapterIds);
+        const hadith = toHadith(raw, chapterIds, dump);
         if (!hadith) {
             warn(`${where}: no ar/en text, skipped`);
             continue;
