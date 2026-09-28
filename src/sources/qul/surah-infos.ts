@@ -8,6 +8,7 @@ import {
     type QuranSurahInfoBlock,
     type QuranSurahInfoFile,
     type QuranSurahIntroduction,
+    type QuranTafsirBlock,
     type QuranTranslationId,
 } from '@muslimreminder/schema/content';
 import { decodeHTML } from 'entities';
@@ -71,14 +72,18 @@ const HEADING = /^h[1-6]$/;
 const SKIPPED = new Set(['sup', 'script', 'style']);
 
 /**
- * Introduction HTML → plain-text blocks. Headings, paragraphs and lists are kept; inline markup
+ * QUL HTML → plain-text blocks. Headings, paragraphs and lists are kept; inline markup
  * (emphasis, links to verses, spans) keeps its text only. Loose text between blocks and `<br>` start a
- * new paragraph, as the sources use them in place of `<p>`.
+ * new paragraph, as the sources use them in place of `<p>`. With `isQuote`, the paragraphs whose opening
+ * tag it accepts (e.g. `<p class="translation">`) become `quote` blocks.
  */
-export function htmlToBlocks(html: string): QuranSurahInfoBlock[] {
-    const blocks: QuranSurahInfoBlock[] = [];
+export function htmlToBlocks(html: string): QuranSurahInfoBlock[];
+export function htmlToBlocks(html: string, options: { isQuote: (tag: string) => boolean }): QuranTafsirBlock[];
+export function htmlToBlocks(html: string, options?: { isQuote: (tag: string) => boolean }): QuranTafsirBlock[] {
+    const blocks: QuranTafsirBlock[] = [];
     let buffer = '';
     let heading = false;
+    let quote = false;
     let list: { ordered: boolean; items: string[] } | undefined;
     let item: string | undefined;
     let skipped = 0;
@@ -92,7 +97,7 @@ export function htmlToBlocks(html: string): QuranSurahInfoBlock[] {
         } else if (list) {
             list.items.push(text);
         } else {
-            blocks.push({ type: heading ? 'heading' : 'paragraph', text });
+            blocks.push({ type: heading ? 'heading' : quote ? 'quote' : 'paragraph', text });
         }
     };
     const endItem = () => {
@@ -127,6 +132,7 @@ export function htmlToBlocks(html: string): QuranSurahInfoBlock[] {
             // Inside a list item, a paragraph only separates sentences of the same item.
             if (item !== undefined) buffer += ' ';
             else flush();
+            if (name !== 'br') quote = !closing && options?.isQuote(token) === true;
         } else if (name === 'ol' || name === 'ul') {
             if (closing) endList();
             else {

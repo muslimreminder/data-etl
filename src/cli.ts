@@ -6,6 +6,7 @@ import {
     contentKeys,
     HadithCollectionsFileSchema,
     QuranSurahInfosFileSchema,
+    QuranTafsirsFileSchema,
     QuranTranslationsFileSchema,
     QuranWordTranslationsFileSchema,
 } from '@muslimreminder/schema/content';
@@ -17,18 +18,19 @@ import { parseHadithDump, type SunnahDump } from './sources/sunnah/dump.ts';
 import { buildHadithFiles } from './sources/sunnah/index.ts';
 import { buildTranslationFiles, type ReadQulSource } from './sources/qul/index.ts';
 import { buildSurahInfoFiles } from './sources/qul/surah-infos.ts';
+import { buildTafsirFiles } from './sources/qul/tafsirs.ts';
 import { buildWordTranslationFiles } from './sources/qul/words.ts';
 
 const HELP = `Usage: npm run etl -- [options]
 
   --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations,
-                        quran-surah-infos (default: hadith)
+                        quran-surah-infos, quran-tafsirs (default: hadith)
   --target local|r2     Where to publish (default: local)
   --out <dir>           Folder for --target local (default: ./out)
   --collections <ids>   Comma-separated sunnah.com collections to rebuild (default: all)
   --dump <file|none>    sunnah.com snapshot (HadithTable.sql[.gz]). Default: r2://muslimreminder-sources
                         with --target r2, none with --target local
-  --qul <dir|r2>        Downloaded QUL files (translations, surah infos), named <id>.json (see npm run upload-qul).
+  --qul <dir|r2>        Downloaded QUL files (translations, surah infos, tafsirs), named <id>.json (see npm run upload-qul).
                         Default: r2://muslimreminder-sources with --target r2
   --dry-run             Build and compare, but write nothing
   -h, --help
@@ -65,7 +67,7 @@ const requireEnv = (name: string) => {
     return value;
 };
 
-const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos'] as const;
+const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos', 'quran-tafsirs'] as const;
 const contents = values.content.split(',').map((content) => content.trim()).filter(Boolean);
 const unknownContent = contents.filter((content) => !(CONTENTS as readonly string[]).includes(content));
 if (contents.length === 0 || unknownContent.length > 0) {
@@ -197,6 +199,17 @@ if (contents.includes('quran-surah-infos')) {
     files.push(
         ...(await buildSurahInfoFiles(qulSource(), {
             ...(published && { previous: published.infos }),
+            log,
+            warn,
+        })),
+    );
+}
+
+if (contents.includes('quran-tafsirs')) {
+    const published = await readPublished(storage, previous, contentKeys.quran.tafsirs(), QuranTafsirsFileSchema);
+    files.push(
+        ...(await buildTafsirFiles(qulSource(), {
+            ...(published && { previous: published.tafsirs }),
             log,
             warn,
         })),
