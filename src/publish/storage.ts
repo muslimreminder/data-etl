@@ -75,6 +75,18 @@ export class R2Storage implements ContentStorage {
         }
     }
 
+    /** Text of an object and when it was uploaded. */
+    async getWithDate(path: string): Promise<{ text: string; modifiedAt: Date } | undefined> {
+        try {
+            const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: path }));
+            const text = await object.Body?.transformToString('utf-8');
+            return text === undefined ? undefined : { text, modifiedAt: object.LastModified ?? new Date() };
+        } catch (error) {
+            if (error instanceof NoSuchKey) return undefined;
+            throw error;
+        }
+    }
+
     async exists(path: string) {
         try {
             await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: path }));
