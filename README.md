@@ -13,6 +13,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Hadiths | [sunnah.com API](https://sunnah.stoplight.io/docs/api), enriched by the sunnah.com data snapshot | ar, en |
 | Quran translations | [QUL](https://qul.tarteel.ai/resources/translation) files downloaded by hand | fr, en, tr, de, es, ru |
 | Quran word-by-word translations | QUL `*-wbw-translation.json` files, downloaded by hand | fr, en, tr |
+| Surah introductions | [QUL surah info](https://qul.tarteel.ai/resources/surah-info) `surah-info-<lang>.json` files, downloaded by hand | en, ur, ml, id, it |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -55,6 +56,12 @@ text; footnotes are taken out of the text and kept with the offset of their mark
 `retrievedAt` is the upload date of the source file, so an unchanged source publishes nothing.
 A translation whose source is missing keeps its published version.
 
+Surah introductions (`content = quran-surah-infos`, catalog in
+[`src/sources/qul/surah-infos.ts`](src/sources/qul/surah-infos.ts)) are uploaded the same way. Their
+HTML becomes plain-text blocks (`heading`, `paragraph`, `list`); a surah whose text is shorter than
+200 characters (a bare cross-reference such as "Vedi Appendice 1.") is published as `null`. The Tamil
+file is left out: it repeats the introduction of Al-Imran for every surah.
+
 ## Output
 
 ```
@@ -66,6 +73,8 @@ v1/quran/translations.<hash>.json                    immutable
 v1/quran/translations/<id>.<hash>.json               immutable
 v1/quran/word-translations.<hash>.json               immutable
 v1/quran/word-translations/<id>.<hash>.json          immutable
+v1/quran/surah-infos.<hash>.json                     immutable
+v1/quran/surah-infos/<id>.<hash>.json                immutable
 ```
 
 Changed files are uploaded first, the manifest last. Unchanged content uploads nothing.

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       content:
-        description: 'What to publish. quran-translations reads the QUL files sent by npm run upload-qul'
+        description: 'What to publish. quran-* read the QUL files sent by npm run upload-qul'
         type: choice
-        options: [hadith, quran-translations, quran-word-translations, 'quran-translations,quran-word-translations', 'hadith,quran-translations,quran-word-translations']
+        options: [hadith, quran-translations, quran-word-translations, quran-surah-infos, 'quran-translations,quran-word-translations,quran-surah-infos', 'hadith,quran-translations,quran-word-translations,quran-surah-infos']
         default: hadith
       collections:
         description: 'sunnah.com collections to rebuild, comma-separated (empty = all)'
