@@ -4,6 +4,8 @@
 //   npm run upload-qul -- ~/Downloads                          # every recognized file of the folder
 //   npm run upload-qul -- ~/Downloads/fr-rashid-maash-with-footnote-tags.json
 //   npm run upload-qul -- --dry-run ~/Downloads                # check the files, upload nothing
+//   npm run upload-qul -- es-montada=~/Downloads/montada-islamic-foundation-with-footnote-tags-2.json
+//                                                              # a file whose name several translations share
 // Files are recognized by name (catalog `file`), checked, then stored as qul/translations/<id>.json.
 import { execFileSync } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
@@ -19,18 +21,31 @@ if (args.length === 0) {
     process.exit(1);
 }
 
+const matches = new Map<QulTranslation, string>();
+let failed = false;
 const files: string[] = [];
 for (const arg of args) {
-    if ((await stat(arg)).isDirectory()) {
+    // `id=file`: the translation is given, not guessed from the file name.
+    const explicit = arg.match(/^([a-z0-9-]+)=(.+)$/);
+    if (explicit) {
+        const translation = QUL_TRANSLATIONS.find(candidate => candidate.id === explicit[1]);
+        if (!translation) {
+            console.error(`${explicit[1]}: not in the catalog`);
+            failed = true;
+        } else {
+            matches.set(translation, explicit[2]!);
+        }
+    } else if ((await stat(arg)).isDirectory()) {
         files.push(...(await readdir(arg)).filter((name) => name.endsWith('.json')).map((name) => join(arg, name)));
     } else {
         files.push(arg);
     }
 }
 
-const matches = new Map<QulTranslation, string>();
-let failed = false;
+const explicitFiles = new Set(matches.values());
+const candidates = new Map<QulTranslation, string[]>();
 for (const file of files) {
+    if (explicitFiles.has(file)) continue;
     const found = QUL_TRANSLATIONS.filter((translation) => translation.file.test(basename(file)));
     if (found.length !== 1) {
         // A folder holds other downloads: only files named explicitly must be recognized.
@@ -41,12 +56,18 @@ for (const file of files) {
         continue;
     }
     const translation = found[0]!;
-    if (matches.has(translation)) {
-        console.error(`${translation.id}: several files (${matches.get(translation)}, ${file}), keep only one`);
+    if (!matches.has(translation)) candidates.set(translation, [...(candidates.get(translation) ?? []), file]);
+}
+for (const [translation, found] of candidates) {
+    if (found.length === 1) {
+        matches.set(translation, found[0]!);
+    } else if (found.some(file => args.includes(file))) {
+        console.error(`${translation.id}: several files (${found.join(', ')}), keep only one`);
         failed = true;
-        continue;
+    } else {
+        // A folder holding two downloads with the same name pattern: not guessed, but not fatal either.
+        console.warn(`${translation.id}: several files in the folder (${found.map(file => basename(file)).join(', ')}), skipped: pass ${translation.id}=<file>`);
     }
-    matches.set(translation, file);
 }
 
 const uploads: { translation: QulTranslation; file: string }[] = [];
