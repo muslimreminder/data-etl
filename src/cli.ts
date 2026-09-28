@@ -2,7 +2,12 @@ import { readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { gunzipSync } from 'node:zlib';
-import { contentKeys, HadithCollectionsFileSchema, QuranTranslationsFileSchema } from '@muslimreminder/schema/content';
+import {
+    contentKeys,
+    HadithCollectionsFileSchema,
+    QuranTranslationsFileSchema,
+    QuranWordTranslationsFileSchema,
+} from '@muslimreminder/schema/content';
 import type { OutputFile } from './output.ts';
 import { publish, readManifest, readPublished } from './publish/publish.ts';
 import { LocalStorage, R2Storage, type ContentStorage } from './publish/storage.ts';
@@ -10,10 +15,11 @@ import { SunnahClient } from './sources/sunnah/client.ts';
 import { parseHadithDump, type SunnahDump } from './sources/sunnah/dump.ts';
 import { buildHadithFiles } from './sources/sunnah/index.ts';
 import { buildTranslationFiles, type ReadQulSource } from './sources/qul/index.ts';
+import { buildWordTranslationFiles } from './sources/qul/words.ts';
 
 const HELP = `Usage: npm run etl -- [options]
 
-  --content <list>      Comma-separated: hadith, quran-translations (default: hadith)
+  --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations (default: hadith)
   --target local|r2     Where to publish (default: local)
   --out <dir>           Folder for --target local (default: ./out)
   --collections <ids>   Comma-separated sunnah.com collections to rebuild (default: all)
@@ -56,7 +62,7 @@ const requireEnv = (name: string) => {
     return value;
 };
 
-const CONTENTS = ['hadith', 'quran-translations'] as const;
+const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations'] as const;
 const contents = values.content.split(',').map((content) => content.trim()).filter(Boolean);
 const unknownContent = contents.filter((content) => !(CONTENTS as readonly string[]).includes(content));
 if (contents.length === 0 || unknownContent.length > 0) {
@@ -115,6 +121,7 @@ function qulSource(): ReadQulSource {
         const bucket = r2(sourcesBucket());
         return (key) => bucket.getWithDate(key);
     }
+    // A local folder holds both kinds side by side: `<id>.json`, word-by-word ids ending in `-wbw`.
     return async (key) => {
         const file = join(source, basename(key));
         const text = await readFile(file, 'utf8').catch(() => undefined);
@@ -164,6 +171,17 @@ if (contents.includes('quran-translations')) {
     const published = await readPublished(storage, previous, contentKeys.quran.translations(), QuranTranslationsFileSchema);
     files.push(
         ...(await buildTranslationFiles(qulSource(), {
+            ...(published && { previous: published.translations }),
+            log,
+            warn,
+        })),
+    );
+}
+
+if (contents.includes('quran-word-translations')) {
+    const published = await readPublished(storage, previous, contentKeys.quran.wordTranslations(), QuranWordTranslationsFileSchema);
+    files.push(
+        ...(await buildWordTranslationFiles(qulSource(), {
             ...(published && { previous: published.translations }),
             log,
             warn,

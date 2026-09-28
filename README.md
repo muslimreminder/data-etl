@@ -12,6 +12,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | --- | --- | --- |
 | Hadiths | [sunnah.com API](https://sunnah.stoplight.io/docs/api), enriched by the sunnah.com data snapshot | ar, en |
 | Quran translations | [QUL](https://qul.tarteel.ai/resources/translation) files downloaded by hand | fr, en, tr, de, es, ru |
+| Quran word-by-word translations | QUL `*-wbw-translation.json` files, downloaded by hand | fr, en, tr |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -47,7 +48,9 @@ npm run upload-qul -- ~/Downloads             # → r2://muslimreminder-sources/
 npm run upload-qul -- es-montada=~/Downloads/montada-…-2.json   # when QUL names two files the same
 ```
 
-and run **Publish content** with `content = quran-translations`. Verses are published as plain
+and run **Publish content** with `content = quran-translations` (`quran-word-translations` for the
+word-by-word files, catalog in [`src/sources/qul/words.ts`](src/sources/qul/words.ts)). Word by word,
+each word keeps its position in the verse, `null` when the source leaves it to the word before. Verses are published as plain
 text; footnotes are taken out of the text and kept with the offset of their marker.
 `retrievedAt` is the upload date of the source file, so an unchanged source publishes nothing.
 A translation whose source is missing keeps its published version.
@@ -61,6 +64,8 @@ v1/hadith/<collection>/books.<hash>.json             immutable
 v1/hadith/<collection>/books/<book>.<hash>.json      immutable
 v1/quran/translations.<hash>.json                    immutable
 v1/quran/translations/<id>.<hash>.json               immutable
+v1/quran/word-translations.<hash>.json               immutable
+v1/quran/word-translations/<id>.<hash>.json          immutable
 ```
 
 Changed files are uploaded first, the manifest last. Unchanged content uploads nothing.
