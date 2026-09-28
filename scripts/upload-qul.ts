@@ -6,12 +6,37 @@
 //   npm run upload-qul -- --dry-run ~/Downloads                # check the files, upload nothing
 //   npm run upload-qul -- es-montada=~/Downloads/montada-islamic-foundation-with-footnote-tags-2.json
 //                                                              # a file whose name several translations share
-// Files are recognized by name (catalog `file`), checked, then stored as qul/translations/<id>.json.
+// Files are recognized by name (catalog `file`), checked, then stored as qul/translations/<id>.json
+// (qul/word-translations/<id>.json for the word-by-word ones).
 import { execFileSync } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { QUL_TRANSLATIONS, qulSourceKey, type QulTranslation } from '../src/sources/qul/catalog.ts';
+import { QUL_TRANSLATIONS, qulSourceKey } from '../src/sources/qul/catalog.ts';
 import { hasFootnoteTags, parseQulTranslation } from '../src/sources/qul/raw.ts';
+import { parseQulWords, QUL_WORD_TRANSLATIONS, qulWordSourceKey } from '../src/sources/qul/words.ts';
+
+/** A translation of the catalogs, verse by verse or word by word, and how to check its file. */
+type Resource = { id: string; file: RegExp; key: string; check: (text: string) => void };
+
+const RESOURCES: Resource[] = [
+    ...QUL_TRANSLATIONS.map((translation) => ({
+        id: translation.id,
+        file: translation.file,
+        key: qulSourceKey(translation.id),
+        check: (text: string) => {
+            const raw = parseQulTranslation(text);
+            if (translation.format === 'footnote-tags' && !hasFootnoteTags(raw)) {
+                throw new Error('no footnotes: download "translation-with-footnote-tags.json", not "simple.json"');
+            }
+        },
+    })),
+    ...QUL_WORD_TRANSLATIONS.map((translation) => ({
+        id: translation.id,
+        file: translation.file,
+        key: qulWordSourceKey(translation.id),
+        check: (text: string) => void parseQulWords(text),
+    })),
+];
 
 const BUCKET = process.env.R2_SOURCES_BUCKET?.trim() || 'muslimreminder-sources';
 const dryRun = process.argv.includes('--dry-run');
@@ -21,14 +46,14 @@ if (args.length === 0) {
     process.exit(1);
 }
 
-const matches = new Map<QulTranslation, string>();
+const matches = new Map<Resource, string>();
 let failed = false;
 const files: string[] = [];
 for (const arg of args) {
     // `id=file`: the translation is given, not guessed from the file name.
     const explicit = arg.match(/^([a-z0-9-]+)=(.+)$/);
     if (explicit) {
-        const translation = QUL_TRANSLATIONS.find(candidate => candidate.id === explicit[1]);
+        const translation = RESOURCES.find(candidate => candidate.id === explicit[1]);
         if (!translation) {
             console.error(`${explicit[1]}: not in the catalog`);
             failed = true;
@@ -43,10 +68,10 @@ for (const arg of args) {
 }
 
 const explicitFiles = new Set(matches.values());
-const candidates = new Map<QulTranslation, string[]>();
+const candidates = new Map<Resource, string[]>();
 for (const file of files) {
     if (explicitFiles.has(file)) continue;
-    const found = QUL_TRANSLATIONS.filter((translation) => translation.file.test(basename(file)));
+    const found = RESOURCES.filter((translation) => translation.file.test(basename(file)));
     if (found.length !== 1) {
         // A folder holds other downloads: only files named explicitly must be recognized.
         if (args.includes(file)) {
@@ -70,13 +95,10 @@ for (const [translation, found] of candidates) {
     }
 }
 
-const uploads: { translation: QulTranslation; file: string }[] = [];
+const uploads: { translation: Resource; file: string }[] = [];
 for (const [translation, file] of matches) {
     try {
-        const raw = parseQulTranslation(await readFile(file, 'utf8'));
-        if (translation.format === 'footnote-tags' && !hasFootnoteTags(raw)) {
-            throw new Error('no footnotes: download "translation-with-footnote-tags.json", not "simple.json"');
-        }
+        translation.check(await readFile(file, 'utf8'));
         uploads.push({ translation, file });
     } catch (error) {
         console.error(`${file}: ${(error as Error).message}`);
@@ -91,7 +113,7 @@ if (uploads.length === 0) {
 }
 
 for (const { translation, file } of uploads) {
-    const key = qulSourceKey(translation.id);
+    const key = translation.key;
     console.log(`${basename(file)} → r2://${BUCKET}/${key}${dryRun ? ' (dry run)' : ''}`);
     if (dryRun) continue;
     execFileSync(
@@ -101,6 +123,6 @@ for (const { translation, file } of uploads) {
     );
 }
 
-const missing = QUL_TRANSLATIONS.filter((translation) => !matches.has(translation)).map((translation) => translation.id);
+const missing = RESOURCES.filter((translation) => !matches.has(translation)).map((translation) => translation.id);
 console.log(`\n${uploads.length} ${dryRun ? 'to upload' : 'uploaded'}.${missing.length ? ` Not in this upload: ${missing.join(', ')}.` : ''}`);
-console.log('Then run GitHub Actions → "Publish content" with content = quran-translations.');
+console.log('Then run GitHub Actions → "Publish content" with content = quran-translations (and/or quran-word-translations).');
