@@ -5,6 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import {
     contentKeys,
     HadithCollectionsFileSchema,
+    QuranSurahInfosFileSchema,
     QuranTranslationsFileSchema,
     QuranWordTranslationsFileSchema,
 } from '@muslimreminder/schema/content';
@@ -15,17 +16,19 @@ import { SunnahClient } from './sources/sunnah/client.ts';
 import { parseHadithDump, type SunnahDump } from './sources/sunnah/dump.ts';
 import { buildHadithFiles } from './sources/sunnah/index.ts';
 import { buildTranslationFiles, type ReadQulSource } from './sources/qul/index.ts';
+import { buildSurahInfoFiles } from './sources/qul/surah-infos.ts';
 import { buildWordTranslationFiles } from './sources/qul/words.ts';
 
 const HELP = `Usage: npm run etl -- [options]
 
-  --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations (default: hadith)
+  --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations,
+                        quran-surah-infos (default: hadith)
   --target local|r2     Where to publish (default: local)
   --out <dir>           Folder for --target local (default: ./out)
   --collections <ids>   Comma-separated sunnah.com collections to rebuild (default: all)
   --dump <file|none>    sunnah.com snapshot (HadithTable.sql[.gz]). Default: r2://muslimreminder-sources
                         with --target r2, none with --target local
-  --qul <dir|r2>        Downloaded QUL translations, named <id>.json (see npm run upload-qul).
+  --qul <dir|r2>        Downloaded QUL files (translations, surah infos), named <id>.json (see npm run upload-qul).
                         Default: r2://muslimreminder-sources with --target r2
   --dry-run             Build and compare, but write nothing
   -h, --help
@@ -62,7 +65,7 @@ const requireEnv = (name: string) => {
     return value;
 };
 
-const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations'] as const;
+const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos'] as const;
 const contents = values.content.split(',').map((content) => content.trim()).filter(Boolean);
 const unknownContent = contents.filter((content) => !(CONTENTS as readonly string[]).includes(content));
 if (contents.length === 0 || unknownContent.length > 0) {
@@ -114,14 +117,14 @@ const sourcesBucket = () => process.env.R2_SOURCES_BUCKET?.trim() || 'muslimremi
 function qulSource(): ReadQulSource {
     const source = values.qul ?? (values.target === 'r2' ? 'r2' : undefined);
     if (source === undefined) {
-        console.error(`--qul <dir> is required to build quran-translations locally\n\n${HELP}`);
+        console.error(`--qul <dir> is required to build QUL content locally\n\n${HELP}`);
         process.exit(1);
     }
     if (source === 'r2') {
         const bucket = r2(sourcesBucket());
         return (key) => bucket.getWithDate(key);
     }
-    // A local folder holds both kinds side by side: `<id>.json`, word-by-word ids ending in `-wbw`.
+    // A local folder holds every kind side by side, as `<id>.json`: ids never collide between kinds.
     return async (key) => {
         const file = join(source, basename(key));
         const text = await readFile(file, 'utf8').catch(() => undefined);
@@ -183,6 +186,17 @@ if (contents.includes('quran-word-translations')) {
     files.push(
         ...(await buildWordTranslationFiles(qulSource(), {
             ...(published && { previous: published.translations }),
+            log,
+            warn,
+        })),
+    );
+}
+
+if (contents.includes('quran-surah-infos')) {
+    const published = await readPublished(storage, previous, contentKeys.quran.surahInfos(), QuranSurahInfosFileSchema);
+    files.push(
+        ...(await buildSurahInfoFiles(qulSource(), {
+            ...(published && { previous: published.infos }),
             log,
             warn,
         })),
