@@ -14,6 +14,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Quran translations | [QUL](https://qul.tarteel.ai/resources/translation) files downloaded by hand | fr, en, tr, de, es, ru |
 | Quran word-by-word translations | QUL `*-wbw-translation.json` files, downloaded by hand | fr, en, tr |
 | Surah introductions | [QUL surah info](https://qul.tarteel.ai/resources/surah-info) `surah-info-<lang>.json` files, downloaded by hand | en, ur, ml, id, it |
+| Tafsirs | [QUL tafsir](https://qul.tarteel.ai/resources/tafsir) JSON files, downloaded by hand | ar ×2, en ×2, fr, ru ×3, sq |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -62,6 +63,14 @@ HTML becomes plain-text blocks (`heading`, `paragraph`, `list`); a surah whose t
 200 characters (a bare cross-reference such as "Vedi Appendice 1.") is published as `null`. The Tamil
 file is left out: it repeats the introduction of Al-Imran for every surah.
 
+Tafsirs (`content = quran-tafsirs`, catalog in [`src/sources/qul/tafsirs.ts`](src/sources/qul/tafsirs.ts),
+several per language) are uploaded the same way. QUL explains verses in groups: each group becomes a
+passage `{ from, to, blocks }` of its surah, with blocks `heading`, `paragraph`, `list` and `quote` (the
+verse translation some tafsirs quote first). A verse whose text is empty has no passage. Per-source fixes:
+the editors' notes `[[…]]` of the Arabic Ibn Kathir are dropped, the Quran words of the Russian Ibn Kathir
+are spaced again, the line-end hyphens of the Russian Saadi are joined, and backticks become `ʿ` (or `’`
+in Albanian). The Turkish "Tafsir Ibne Kathir" (QUL 306) is left out: it only holds the verse translation.
+
 ## Output
 
 ```
@@ -75,6 +84,8 @@ v1/quran/word-translations.<hash>.json               immutable
 v1/quran/word-translations/<id>.<hash>.json          immutable
 v1/quran/surah-infos.<hash>.json                     immutable
 v1/quran/surah-infos/<id>.<hash>.json                immutable
+v1/quran/tafsirs.<hash>.json                         immutable
+v1/quran/tafsirs/<id>.<hash>.json                    immutable
 ```
 
 Changed files are uploaded first, the manifest last. Unchanged content uploads nothing.
