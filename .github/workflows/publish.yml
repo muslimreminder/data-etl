@@ -3,6 +3,11 @@ name: Publish content
 on:
   workflow_dispatch:
     inputs:
+      content:
+        description: 'What to publish. quran-translations reads the QUL files sent by npm run upload-qul'
+        type: choice
+        options: [hadith, quran-translations, 'hadith,quran-translations']
+        default: hadith
       collections:
         description: 'sunnah.com collections to rebuild, comma-separated (empty = all)'
         required: false
@@ -12,7 +17,8 @@ on:
         type: boolean
         default: false
   schedule:
-    # Monthly: hadith collections rarely change, and sunnah.com allows 5,000 requests/day.
+    # Monthly, hadiths only: collections rarely change, and sunnah.com allows 5,000 requests/day.
+    # Translations are published by hand, after a QUL update has been uploaded.
     - cron: '0 3 1 * *'
 
 permissions:
@@ -42,9 +48,10 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CONTENT: ${{ inputs.content || 'hadith' }}
           COLLECTIONS: ${{ inputs.collections }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
-        run: npm run etl -- --target r2 ${COLLECTIONS:+--collections "$COLLECTIONS"} $DRY_RUN | tee etl.log
+        run: npm run etl -- --target r2 --content "$CONTENT" ${COLLECTIONS:+--collections "$COLLECTIONS"} $DRY_RUN | tee etl.log
       - name: Summary
         if: always()
         run: |
