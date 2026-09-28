@@ -150,11 +150,26 @@ describe('catalog', () => {
         const downloads = [
             'quran-fr-hamidullah-with-footnote-tags.json',
             'fr-rashid-maash-with-footnote-tags.json',
-            'montada-islamic-foundation-with-footnote-tags.json',
             'en-daryabadi-simple.json',
+            'dar-al-salam-center-simple.json',
+            'muslim-shahin-simple.json',
+            'shaban-britch-simple.json',
+            'tr-hamdi-simple.json',
+            'de-bubenheim-simple.json',
+            'es-isa-garcia-with-footnote-tags.json',
+            'noor-international-center-with-footnote-tags.json',
+            'quran-ru-kuliev-simple.json',
+            'ru-abu-adel-simple.json',
+            'ru-gordy-simple.json',
+            'ru-nuri-simple.json',
         ];
         for (const name of downloads) {
             expect(QUL_TRANSLATIONS.filter((translation) => translation.file.test(name))).toHaveLength(1);
         }
+    });
+
+    it('leaves the Montada files to an explicit id, QUL naming them the same in every language', () => {
+        const montada = QUL_TRANSLATIONS.filter((translation) => translation.file.test('montada-islamic-foundation-with-footnote-tags.json'));
+        expect(montada.map((translation) => translation.id)).toEqual(['fr-montada', 'es-montada']);
     });
 });

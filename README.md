@@ -11,7 +11,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Content | Source | Languages |
 | --- | --- | --- |
 | Hadiths | [sunnah.com API](https://sunnah.stoplight.io/docs/api), enriched by the sunnah.com data snapshot | ar, en |
-| Quran translations | [QUL](https://qul.tarteel.ai/resources/translation) files downloaded by hand | fr, en |
+| Quran translations | [QUL](https://qul.tarteel.ai/resources/translation) files downloaded by hand | fr, en, tr, de, es, ru |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -44,6 +44,7 @@ update, download the files in a browser, then:
 ```sh
 npm run upload-qul -- --dry-run ~/Downloads   # recognizes and checks the files, uploads nothing
 npm run upload-qul -- ~/Downloads             # → r2://muslimreminder-sources/qul/translations/<id>.json (wrangler)
+npm run upload-qul -- es-montada=~/Downloads/montada-…-2.json   # when QUL names two files the same
 ```
 
 and run **Publish content** with `content = quran-translations`. Verses are published as plain
