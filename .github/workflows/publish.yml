@@ -6,7 +6,7 @@ on:
       content:
         description: 'What to publish. quran-* read the QUL files sent by npm run upload-qul'
         type: choice
-        options: [hadith, quran-translations, quran-word-translations, quran-surah-infos, quran-tafsirs, 'quran-translations,quran-word-translations,quran-surah-infos,quran-tafsirs', 'hadith,quran-translations,quran-word-translations,quran-surah-infos,quran-tafsirs']
+        options: [hadith, quran-translations, quran-word-translations, quran-surah-infos, quran-tafsirs, quran-recitations, 'quran-translations,quran-word-translations,quran-surah-infos,quran-tafsirs,quran-recitations', 'hadith,quran-translations,quran-word-translations,quran-surah-infos,quran-tafsirs,quran-recitations']
         default: hadith
       collections:
         description: 'sunnah.com collections to rebuild, comma-separated (empty = all)'

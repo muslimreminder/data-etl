@@ -1,0 +1,61 @@
+name: Mirror recitation audio
+
+# Copies the verse audio of a recitation to the content bucket. A recitation is 6,236 files (~400 MB)
+# and takes hours, so it is manual and resumable: run it again and it picks up where it stopped.
+on:
+  workflow_dispatch:
+    inputs:
+      recitations:
+        description: 'Recitations to mirror, comma-separated (empty = all of the catalog)'
+        required: false
+        default: ''
+      concurrency:
+        description: 'Verses downloaded at the same time'
+        required: false
+        default: '8'
+      dry_run:
+        description: 'Download and count, upload nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Never two runs at once: they would download the same verses twice.
+concurrency:
+  group: mirror-recitation-audio
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Mirror to R2
+        # Explicit bash = pipefail: a failing mirror must fail the job despite `| tee`.
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RECITATIONS: ${{ inputs.recitations }}
+          CONCURRENCY: ${{ inputs.concurrency || '8' }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          npm run mirror-audio -- --target r2 --concurrency "$CONCURRENCY" \
+            ${RECITATIONS:+--recitations "$RECITATIONS"} $DRY_RUN | tee mirror.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '### Mirror recitation audio'
+            echo '```'
+            tail -n 30 mirror.log || echo 'No log'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

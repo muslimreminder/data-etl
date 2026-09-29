@@ -9,12 +9,14 @@
 // Files are recognized by name (catalog `file`), checked, then stored as qul/translations/<id>.json
 // (qul/word-translations/<id>.json for the word-by-word ones, qul/surah-infos/<id>.json for the
 // surah introductions of https://qul.tarteel.ai/resources/surah-info, qul/tafsirs/<id>.json for the
-// tafsirs of https://qul.tarteel.ai/resources/tafsir).
+// tafsirs of https://qul.tarteel.ai/resources/tafsir, qul/recitations/<id>.json for the ayah-by-ayah
+// recitations of https://qul.tarteel.ai/resources/recitation).
 import { execFileSync } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { QUL_TRANSLATIONS, qulSourceKey } from '../src/sources/qul/catalog.ts';
 import { hasFootnoteTags, parseQulTranslation } from '../src/sources/qul/raw.ts';
+import { parseQulRecitation, QUL_RECITATIONS, qulRecitationSourceKey } from '../src/sources/qul/recitations.ts';
 import { parseQulSurahInfos, QUL_SURAH_INFOS, qulSurahInfoSourceKey } from '../src/sources/qul/surah-infos.ts';
 import { parseQulTafsir, QUL_TAFSIRS, qulTafsirSourceKey } from '../src/sources/qul/tafsirs.ts';
 import { parseQulWords, QUL_WORD_TRANSLATIONS, qulWordSourceKey } from '../src/sources/qul/words.ts';
@@ -51,6 +53,12 @@ const RESOURCES: Resource[] = [
         file: tafsir.file,
         key: qulTafsirSourceKey(tafsir.id),
         check: (text: string) => void parseQulTafsir(text),
+    })),
+    ...QUL_RECITATIONS.map((recitation) => ({
+        id: recitation.id,
+        file: recitation.file,
+        key: qulRecitationSourceKey(recitation.id),
+        check: (text: string) => void parseQulRecitation(text),
     })),
 ];
 
@@ -141,4 +149,7 @@ for (const { translation, file } of uploads) {
 
 const missing = RESOURCES.filter((translation) => !matches.has(translation)).map((translation) => translation.id);
 console.log(`\n${uploads.length} ${dryRun ? 'to upload' : 'uploaded'}.${missing.length ? ` Not in this upload: ${missing.join(', ')}.` : ''}`);
-console.log('Then run GitHub Actions → "Publish content" with the matching content (quran-translations, quran-word-translations, quran-surah-infos, quran-tafsirs).');
+console.log(
+    'Then run GitHub Actions → "Publish content" with the matching content (quran-translations, quran-word-translations,' +
+        ' quran-surah-infos, quran-tafsirs, quran-recitations). Recitations also need "Mirror recitation audio".',
+);

@@ -15,6 +15,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Quran word-by-word translations | QUL `*-wbw-translation.json` files, downloaded by hand | fr, en, tr |
 | Surah introductions | [QUL surah info](https://qul.tarteel.ai/resources/surah-info) `surah-info-<lang>.json` files, downloaded by hand | en, ur, ml, id, it |
 | Tafsirs | [QUL tafsir](https://qul.tarteel.ai/resources/tafsir) JSON files, downloaded by hand | ar ×2, en ×2, fr, ru ×3, sq |
+| Quran recitations | [QUL recitation](https://qul.tarteel.ai/resources/recitation) ayah-by-ayah files, downloaded by hand; the audio itself from the CDNs those files point to | ar ×7 |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -71,6 +72,35 @@ the editors' notes `[[…]]` of the Arabic Ibn Kathir are dropped, the Quran wor
 are spaced again, the line-end hyphens of the Russian Saadi are joined, and backticks become `ʿ` (or `’`
 in Albanian). The Turkish "Tafsir Ibne Kathir" (QUL 306) is left out: it only holds the verse translation.
 
+### Quran recitations
+
+Recitations (`content = quran-recitations`, catalog in
+[`src/sources/qul/recitations.ts`](src/sources/qul/recitations.ts)) are uploaded like the rest, from the
+**ayah-by-ayah** downloads of QUL (`ayah-recitation-<reciter>….json`). Each verse becomes
+`{ duration, words }`, every word `[word, start, end]` in milliseconds from the start of its verse, so
+the apps can follow the recitation word by word. The words are numbered as in the word-by-word
+translations; the sources leave a few segments out of order or repeat a word, which the ETL puts back
+in order. A verse the source does not time is published with no words and is simply played whole.
+
+#### Audio files
+
+The apps never play the source CDNs: the audio is mirrored to the content bucket, one file per verse at
+`v1/quran/audio/<id>/<sss><vvv>.mp3` (see `quranVerseAudioPath` in the schema), at the sources' own bitrate
+(128 kbps, roughly 700 MB per recitation and 5 GB for the seven). The manifest does **not**
+list them — 6,236 files per recitation, 43,652 in all — so the apps compute the path; `quran/recitations/<id>`
+is what says which verses exist. The files never change, so they are cached for a year like the hashed ones.
+
+```sh
+npm run mirror-audio -- --qul ~/Downloads --out ./out        # local, to see what it writes
+npm run mirror-audio -- --target r2                          # every recitation, ~700 MB each
+npm run mirror-audio -- --target r2 --recitations al-husary
+npm run mirror-audio -- --target r2 --dry-run                # download and count, upload nothing
+```
+
+In production: GitHub Actions → **Mirror recitation audio** (manual). A run takes hours and is
+resumable: it lists what the bucket already holds and downloads only the rest, so an interrupted run is
+finished by starting it again. Only a recitation whose source changed ever needs mirroring again.
+
 ## Output
 
 ```
@@ -86,6 +116,9 @@ v1/quran/surah-infos.<hash>.json                     immutable
 v1/quran/surah-infos/<id>.<hash>.json                immutable
 v1/quran/tafsirs.<hash>.json                         immutable
 v1/quran/tafsirs/<id>.<hash>.json                    immutable
+v1/quran/recitations.<hash>.json                     immutable
+v1/quran/recitations/<id>.<hash>.json                immutable
+v1/quran/audio/<id>/<sss><vvv>.mp3                   immutable, not in the manifest
 ```
 
 Changed files are uploaded first, the manifest last. Unchanged content uploads nothing.
@@ -99,6 +132,7 @@ SUNNAH_API_KEY=... npm run etl -- --collections hisn              # → ./out (l
 SUNNAH_API_KEY=... npm run etl -- --collections bukhari --dump ~/Downloads/HadithTable.sql.gz
 npm run etl -- --target r2 --collections bukhari --dry-run        # compare with R2, upload nothing
 npm run etl -- --content quran-translations --qul ~/qul   # folder of <id>.json → ./out
+npm run etl -- --content quran-recitations --qul ~/Downloads     # timings only; audio: npm run mirror-audio
 npm run etl -- --help
 ```
 
