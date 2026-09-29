@@ -1,11 +1,12 @@
 import { ManifestSchema } from '@muslimreminder/schema/content';
 import { describe, expect, it } from 'vitest';
 import { IMMUTABLE_CACHE, MANIFEST_CACHE, publish, readManifest } from '../src/publish/publish.ts';
-import type { ContentStorage, PutOptions } from '../src/publish/storage.ts';
+import type { ContentStorage, PutBytesOptions, PutOptions } from '../src/publish/storage.ts';
 
 class MemoryStorage implements ContentStorage {
     readonly description = 'memory';
     readonly objects = new Map<string, { body: string; options: PutOptions }>();
+    readonly bytes = new Map<string, { body: Uint8Array; options: PutBytesOptions }>();
     readonly puts: string[] = [];
     async get(path: string) {
         return this.objects.get(path)?.body;
@@ -16,6 +17,13 @@ class MemoryStorage implements ContentStorage {
     async put(path: string, body: string, options: PutOptions) {
         this.objects.set(path, { body, options });
         this.puts.push(path);
+    }
+    async putBytes(path: string, body: Uint8Array, options: PutBytesOptions) {
+        this.bytes.set(path, { body, options });
+        this.puts.push(path);
+    }
+    async list(prefix: string) {
+        return new Set([...this.objects.keys(), ...this.bytes.keys()].filter((key) => key.startsWith(prefix)));
     }
 }
 

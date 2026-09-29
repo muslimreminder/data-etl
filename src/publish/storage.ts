@@ -1,8 +1,17 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { GetObjectCommand, HeadObjectCommand, NoSuchKey, NotFound, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+    GetObjectCommand,
+    HeadObjectCommand,
+    ListObjectsV2Command,
+    NoSuchKey,
+    NotFound,
+    PutObjectCommand,
+    S3Client,
+} from '@aws-sdk/client-s3';
 
 export type PutOptions = { cacheControl: string };
+export type PutBytesOptions = PutOptions & { contentType: string };
 
 /** Where published files live. Paths are object keys, e.g. `v1/manifest.json`. */
 export interface ContentStorage {
@@ -10,6 +19,13 @@ export interface ContentStorage {
     get(path: string): Promise<string | undefined>;
     exists(path: string): Promise<boolean>;
     put(path: string, body: string, options: PutOptions): Promise<void>;
+    /** Publishes a binary file, e.g. the audio of a verse. */
+    putBytes(path: string, body: Uint8Array, options: PutBytesOptions): Promise<void>;
+    /**
+     * Paths already published under `prefix`. The audio mirror reads it once per recitation rather
+     * than asking for 6,236 files one by one.
+     */
+    list(prefix: string): Promise<Set<string>>;
 }
 
 /** Local folder, to inspect the output without touching R2. */
@@ -34,6 +50,18 @@ export class LocalStorage implements ContentStorage {
         const file = join(this.root, path);
         await mkdir(dirname(file), { recursive: true });
         await writeFile(file, body);
+    }
+
+    async putBytes(path: string, body: Uint8Array) {
+        const file = join(this.root, path);
+        await mkdir(dirname(file), { recursive: true });
+        await writeFile(file, body);
+    }
+
+    async list(prefix: string) {
+        const folder = join(this.root, prefix);
+        const names = await readdir(folder).catch(() => []);
+        return new Set(names.map((name) => `${prefix}${name}`));
     }
 }
 
@@ -107,5 +135,32 @@ export class R2Storage implements ContentStorage {
                 CacheControl: options.cacheControl,
             }),
         );
+    }
+
+    async putBytes(path: string, body: Uint8Array, options: PutBytesOptions) {
+        await this.client.send(
+            new PutObjectCommand({
+                Bucket: this.bucket,
+                Key: path,
+                Body: body,
+                ContentType: options.contentType,
+                CacheControl: options.cacheControl,
+            }),
+        );
+    }
+
+    async list(prefix: string) {
+        const keys = new Set<string>();
+        let token: string | undefined;
+        do {
+            const page = await this.client.send(
+                new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, ContinuationToken: token }),
+            );
+            for (const object of page.Contents ?? []) {
+                if (object.Key) keys.add(object.Key);
+            }
+            token = page.NextContinuationToken;
+        } while (token);
+        return keys;
     }
 }
