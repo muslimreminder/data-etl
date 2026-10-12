@@ -1,0 +1,88 @@
+name: Sync QUL
+
+# Every week: downloads the QUL resources of the catalogs (signed in with the QUL_TOKEN cookie), uploads the
+# changed ones to the sources bucket, publishes them, mirrors the audio of changed recitations, and posts the
+# resources QUL added (and the failures) on the Muslim Reminder Telegram group.
+# The app picks the new catalogs up with its "Embed content" workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Catalog ids to sync, comma-separated (empty = all, and look for new QUL resources)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Download and compare only: upload and publish nothing'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: read
+  actions: write # starts "Mirror recitation audio"
+
+# Same group as "Publish content": two runs would race on the manifest.
+concurrency:
+  group: publish-content
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Download from QUL
+        id: sync
+        env:
+          QUL_TOKEN: ${{ secrets.QUL_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # "Muslim Reminder — Tickets" group, General topic: set a topic id once a QUL topic exists.
+          TELEGRAM_CHAT_ID: '-1004133995291'
+          TELEGRAM_TOPIC_ID: ''
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          ONLY: ${{ inputs.only }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: npm run sync-qul -- --report qul-report.md ${ONLY:+--only "$ONLY"} $DRY_RUN
+
+      # A resource that failed (expired cookie, file renamed on QUL…) does not hold back the others: what
+      # changed is published, then the job fails so that GitHub sends a notification.
+      - name: Publish to R2
+        if: ${{ !cancelled() && steps.sync.outputs.contents != '' && !inputs.dry_run }}
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CONTENT: ${{ steps.sync.outputs.contents }}
+        run: npm run etl -- --target r2 --content "$CONTENT" | tee etl.log
+
+      - name: Mirror the audio of changed recitations
+        if: ${{ !cancelled() && steps.sync.outputs.recitations != '' && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECITATIONS: ${{ steps.sync.outputs.recitations }}
+        run: gh workflow run mirror-audio.yml --ref "$GITHUB_REF_NAME" -f recitations="$RECITATIONS"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            cat qul-report.md 2>/dev/null || echo 'No report'
+            if [ -f etl.log ]; then
+              echo
+              echo '```'
+              grep -vE '^⚠️' etl.log | tail -n 30 || true
+              echo '```'
+              echo "ETL warnings: $(grep -c '^⚠️' etl.log || true)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

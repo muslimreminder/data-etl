@@ -38,6 +38,33 @@ sunnah.com plan: **5 requests/second, 5,000 requests/day**. The client stays at 
 slows down on `429` and stops at 4,500 requests. A full run takes roughly half of the daily quota.
 Collections or books without hadiths in the API (e.g. `nawawi40`) are not published.
 
+### Sync QUL (automatic)
+
+The **Sync QUL** workflow (every Monday, or by hand) does what the sections below describe by hand,
+for every resource of the QUL catalogs ([`src/sources/qul/resources.ts`](src/sources/qul/resources.ts)):
+
+1. signs in to QUL with the `QUL_TOKEN` organization secret, downloads each resource page's file
+   (the same download as by hand), unzips it, checks its name and content;
+2. uploads to `muslimreminder-sources` only the files whose bytes changed (MD5 against the R2 ETag),
+   so an unchanged source never gets a new `retrievedAt`;
+3. runs the ETL for the changed kinds of content, then starts **Mirror recitation audio** for the
+   changed recitations;
+4. compares the QUL listings with `qul/known-resources.json` (sources bucket) and posts the resources
+   QUL added on the Muslim Reminder Telegram group (General topic; failures are posted there too). Adding one stays a choice: append it to its catalog (QUL id = the
+   number in its page URL), merge, and the next sync downloads and publishes it.
+
+The app then refreshes its embedded catalogs through its own **Embed content** workflow (a PR).
+
+`QUL_TOKEN` is the value of the `_quran_com-community_session` cookie of https://qul.tarteel.ai,
+copied from the browser once signed in (DevTools → Application → Cookies). When it expires, the run
+fails with "the QUL session cookie has expired" (and says so on Telegram): sign in again and replace the
+secret. Telegram uses the `TELEGRAM_BOT_TOKEN` secret (the bot of the ticket notifications); the chat and
+topic are set in the workflow. Locally:
+
+```sh
+QUL_TOKEN=… R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=… R2_SECRET_ACCESS_KEY=… npm run sync-qul -- --dry-run
+```
+
 ### QUL translations
 
 QUL has no API and its downloads need an account. The published translations are hand-picked

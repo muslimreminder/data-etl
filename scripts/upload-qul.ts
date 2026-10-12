@@ -11,56 +11,13 @@
 // surah introductions of https://qul.tarteel.ai/resources/surah-info, qul/tafsirs/<id>.json for the
 // tafsirs of https://qul.tarteel.ai/resources/tafsir, qul/recitations/<id>.json for the ayah-by-ayah
 // recitations of https://qul.tarteel.ai/resources/recitation).
+// The "Sync QUL" workflow does the same every week, with a QUL session cookie: this script is the fallback.
 import { execFileSync } from 'node:child_process';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { QUL_TRANSLATIONS, qulSourceKey } from '../src/sources/qul/catalog.ts';
-import { hasFootnoteTags, parseQulTranslation } from '../src/sources/qul/raw.ts';
-import { parseQulRecitation, QUL_RECITATIONS, qulRecitationSourceKey } from '../src/sources/qul/recitations.ts';
-import { parseQulSurahInfos, QUL_SURAH_INFOS, qulSurahInfoSourceKey } from '../src/sources/qul/surah-infos.ts';
-import { parseQulTafsir, QUL_TAFSIRS, qulTafsirSourceKey } from '../src/sources/qul/tafsirs.ts';
-import { parseQulWords, QUL_WORD_TRANSLATIONS, qulWordSourceKey } from '../src/sources/qul/words.ts';
+import { QUL_RESOURCES, type QulResource as Resource } from '../src/sources/qul/resources.ts';
 
-/** A translation of the catalogs, verse by verse or word by word, and how to check its file. */
-type Resource = { id: string; file: RegExp; key: string; check: (text: string) => void };
-
-const RESOURCES: Resource[] = [
-    ...QUL_TRANSLATIONS.map((translation) => ({
-        id: translation.id,
-        file: translation.file,
-        key: qulSourceKey(translation.id),
-        check: (text: string) => {
-            const raw = parseQulTranslation(text);
-            if (translation.format === 'footnote-tags' && !hasFootnoteTags(raw)) {
-                throw new Error('no footnotes: download "translation-with-footnote-tags.json", not "simple.json"');
-            }
-        },
-    })),
-    ...QUL_WORD_TRANSLATIONS.map((translation) => ({
-        id: translation.id,
-        file: translation.file,
-        key: qulWordSourceKey(translation.id),
-        check: (text: string) => void parseQulWords(text),
-    })),
-    ...QUL_SURAH_INFOS.map((info) => ({
-        id: info.id,
-        file: info.file,
-        key: qulSurahInfoSourceKey(info.id),
-        check: (text: string) => void parseQulSurahInfos(text),
-    })),
-    ...QUL_TAFSIRS.map((tafsir) => ({
-        id: tafsir.id,
-        file: tafsir.file,
-        key: qulTafsirSourceKey(tafsir.id),
-        check: (text: string) => void parseQulTafsir(text),
-    })),
-    ...QUL_RECITATIONS.map((recitation) => ({
-        id: recitation.id,
-        file: recitation.file,
-        key: qulRecitationSourceKey(recitation.id),
-        check: (text: string) => void parseQulRecitation(text),
-    })),
-];
+const RESOURCES = QUL_RESOURCES;
 
 const BUCKET = process.env.R2_SOURCES_BUCKET?.trim() || 'muslimreminder-sources';
 const dryRun = process.argv.includes('--dry-run');

@@ -17,7 +17,10 @@ import type { ReadQulSource } from './index.ts';
 /** A verse-by-verse recitation hand-picked from https://qul.tarteel.ai/resources/recitation. */
 export type QulRecitation = {
     id: QuranRecitationId;
-    /** QUL resource id, when the downloaded file carries one (it is in its name). */
+    /**
+     * Id of the resource page on QUL (`/resources/recitation/{qulId}`), where the "Sync QUL" workflow downloads it.
+     * Not the number some downloaded file names end with: that one is QUL's internal recitation id.
+     */
     qulId?: number;
     reciter: string;
     style: QuranRecitationStyle;
@@ -27,12 +30,12 @@ export type QulRecitation = {
 
 /** Published recitations, in catalog order. Every one is Hafs `an` Asim, the reading the mushaf shows. */
 export const QUL_RECITATIONS: QulRecitation[] = [
-    { id: 'al-husary', qulId: 957, reciter: 'Mahmoud Khalil Al-Husary', style: 'murattal', file: /^ayah-recitation-mahmoud-khalil-al-husary/i },
-    { id: 'al-minshawi', qulId: 959, reciter: 'Muhammad Siddiq Al-Minshawi', style: 'murattal', file: /^ayah-recitation-muhammad-siddiq-al-minshawi/i },
-    { id: 'sudais', reciter: 'Abdur-Rahman as-Sudais', style: 'murattal', file: /^ayah-recitation-abdur-rahman-as-sudais/i },
-    { id: 'al-dosari', qulId: 961, reciter: 'Yasser Al-Dosari', style: 'murattal', file: /^ayah-recitation-yasser-al-dosari/i },
-    { id: 'ar-rifai', qulId: 68, reciter: 'Hani ar-Rifai', style: 'murattal', file: /^ayah-recitation-hani-ar-rifai/i },
-    { id: 'al-tunaiji', qulId: 958, reciter: 'Khalifa Al Tunaiji', style: 'murattal', file: /^ayah-recitation-khalifa-al-tunaiji/i },
+    { id: 'al-husary', qulId: 110, reciter: 'Mahmoud Khalil Al-Husary', style: 'murattal', file: /^ayah-recitation-mahmoud-khalil-al-husary/i },
+    { id: 'al-minshawi', qulId: 108, reciter: 'Muhammad Siddiq Al-Minshawi', style: 'murattal', file: /^ayah-recitation-muhammad-siddiq-al-minshawi/i },
+    { id: 'sudais', qulId: 102, reciter: 'Abdur-Rahman as-Sudais', style: 'murattal', file: /^ayah-recitation-abdur-rahman-as-sudais/i },
+    { id: 'al-dosari', qulId: 103, reciter: 'Yasser Al-Dosari', style: 'murattal', file: /^ayah-recitation-yasser-al-dosari/i },
+    { id: 'ar-rifai', qulId: 104, reciter: 'Hani ar-Rifai', style: 'murattal', file: /^ayah-recitation-hani-ar-rifai/i },
+    { id: 'al-tunaiji', qulId: 109, reciter: 'Khalifa Al Tunaiji', style: 'murattal', file: /^ayah-recitation-khalifa-al-tunaiji/i },
     { id: 'alnufais', qulId: 471, reciter: 'Ahmad Alnufais', style: 'murattal', file: /^ayah-recitation-alnufais/i },
 ];
 
