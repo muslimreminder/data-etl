@@ -96,7 +96,7 @@ describe('QUL ayah recitations', () => {
         expect(file.surahs).toHaveLength(114);
         expect(file.surahs[0]![0]).toEqual({ duration: 3840, words: [[1, 0, 500], [2, 520, 1120]] });
         expect(file.recitation).toMatchObject({ id: 'al-husary', style: 'murattal', timedVerseCount: 6236 });
-        expect(file.recitation.attribution.sourceUrl).toBe('https://qul.tarteel.ai/resources/recitation/957');
+        expect(file.recitation.attribution.sourceUrl).toBe('https://qul.tarteel.ai/resources/recitation/110');
         expect(file.recitation.attribution.retrievedAt).toBe(modifiedAt.toISOString());
     });
 

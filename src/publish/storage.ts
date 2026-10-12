@@ -115,6 +115,17 @@ export class R2Storage implements ContentStorage {
         }
     }
 
+    /** ETag of an object (the MD5 of its bytes when uploaded in one part), undefined when missing. */
+    async etag(path: string): Promise<string | undefined> {
+        try {
+            const object = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: path }));
+            return object.ETag?.replaceAll('"', '');
+        } catch (error) {
+            if (error instanceof NotFound) return undefined;
+            throw error;
+        }
+    }
+
     async exists(path: string) {
         try {
             await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: path }));
