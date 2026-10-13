@@ -176,9 +176,9 @@ describe('QUL ayah recitations', () => {
         expect(warnings[0]).toContain('published version kept');
     });
 
-    it('names every source file and every reciter once', () => {
+    it('names every source file and every reciter and style once', () => {
         expect(new Set(QUL_RECITATIONS.map((entry) => entry.id)).size).toBe(QUL_RECITATIONS.length);
-        expect(new Set(QUL_RECITATIONS.map((entry) => entry.reciter)).size).toBe(QUL_RECITATIONS.length);
+        expect(new Set(QUL_RECITATIONS.map((entry) => `${entry.reciter} ${entry.style}`)).size).toBe(QUL_RECITATIONS.length);
         expect(qulRecitationSourceKey('al-husary')).toBe('qul/recitations/al-husary.json');
     });
 
@@ -191,6 +191,15 @@ describe('QUL ayah recitations', () => {
             'ayah-recitation-hani-ar-rifai-recitation-murattal-hafs-68.json': 'ar-rifai',
             'ayah-recitation-khalifa-al-tunaiji-murattal-hafs-958.json': 'al-tunaiji',
             'ayah-recitation-alnufais.json': 'alnufais',
+            // Guessed from QUL's naming, until a signed-in run shows the real names.
+            'ayah-recitation-mohamed-al-tablawi-murattal-hafs.json': 'al-tablawi',
+            'ayah-recitation-saud-al-shuraim-murattal-hafs.json': 'al-shuraim',
+            'ayah-recitation-mahmoud-khalil-al-husary-mujawwad-hafs.json': 'al-husary-mujawwad',
+            'ayah-recitation-maher-al-muaiqly-murattal-hafs.json': 'al-muaiqly',
+            'ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs.json': 'abdul-basit-mujawwad',
+            'ayah-recitation-abdul-basit-abdul-samad-murattal-hafs.json': 'abdul-basit',
+            'ayah-recitation-mishari-rashid-al-afasy-murattal-hafs.json': 'alafasy',
+            'ayah-recitation-saad-al-ghamdi-murattal-hafs.json': 'al-ghamdi',
         };
         for (const [name, id] of Object.entries(downloads)) {
             const matching = QUL_RECITATIONS.filter((entry) => entry.file.test(name));
