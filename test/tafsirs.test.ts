@@ -76,6 +76,22 @@ describe("toTafsirFile", () => {
     expect(warnings).toEqual([`en-ibn-kathir: ${6236 - 292} verses without commentary (1 with an empty text)`]);
   });
 
+  it("leaves a verse listed by two groups to the first one", () => {
+    const warnings: string[] = [];
+    const file = toTafsirFile(
+      english,
+      rawTafsir({
+        "1:3": { text: "<p>3 and 4.</p>", ayah_keys: ["1:3", "1:4"] },
+        "1:4": { text: "<p>5 and 6.</p>", ayah_keys: ["1:4", "1:5", "1:6"] },
+        "1:5": "1:4",
+        "1:6": "1:4",
+      }),
+      { retrievedAt, warn: (message) => warnings.push(message) },
+    );
+    expect(file.surahs[0]!.map(({ from, to }) => [from, to])).toEqual([[1, 1], [2, 2], [3, 4], [5, 6], [7, 7]]);
+    expect(warnings).toContain("en-ibn-kathir: 1:4-6 overlaps 1:3-4");
+  });
+
   it("rejects a pointer to a group that does not hold the verse, and a group across surahs", () => {
     const options = { retrievedAt, warn: () => {} };
     expect(() => toTafsirFile(english, rawTafsir({ "1:3": "1:2" }), options)).toThrow(/does not explain it/);
@@ -116,7 +132,6 @@ describe("buildTafsirFiles", () => {
       "sq-saadi.json",
       "ar-tafsir-muyassar.json",
       "tafsir-as-saadi.json",
-      "asseraj-fi-bayan-gharib-alquran.json",
       "arabic-al-mukhtasar-in-interpreting-the-noble-quran.json",
       "ar-tafsir-al-tabari.json",
       "ar-tafseer-al-qurtubi.json",
