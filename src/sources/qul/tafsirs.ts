@@ -50,13 +50,12 @@ export const QUL_TAFSIRS: QulTafsir[] = [
     { id: 'ru-saadi', qulId: 310, language: 'ru', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^tafsir-as-saadi-russian/i, backtick: AYN, joinHyphenatedWords: true },
     { id: 'ru-mukhtasar', qulId: 262, language: 'ru', name: 'Al-Mukhtasar', file: /^russian-mokhtasar/i, backtick: AYN },
     { id: 'sq-saadi', qulId: 283, language: 'sq', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^sq-saadi/i, backtick: '’' },
-    // Free to republish: QuranEnc.com tafsirs (Muyassar, Saadi, Siraj, Mukhtasar) and classical works in the
-    // public domain. Left out: modern works under copyright (Tahrir wa Tanwir, Al-Wasit, Adwa al-Bayan…), and
-    // Al-Baydawi, Ad-Durr al-Manthur, Al-Wajiz and the Indonesian Saadi (518, 493, 489, 503), whose QUL files are
-    // not in the tafsir format.
+    // Free to republish: QuranEnc.com tafsirs (Muyassar, Saadi, Mukhtasar) and classical works in the public
+    // domain. Left out: modern works under copyright (Tahrir wa Tanwir, Al-Wasit, Adwa al-Bayan…); As-Siraj (250),
+    // a copy of the Arabic Saadi on QUL; Al-Baydawi, Ad-Durr al-Manthur, Al-Wajiz and the Indonesian Saadi
+    // (518, 493, 489, 503), whose QUL files are not in the tafsir format.
     { id: 'ar-muyassar', qulId: 38, language: 'ar', name: 'Tafsir al-Muyassar', author: 'King Fahd Quran Complex', file: /^ar-tafsir-muyassar(?![\w-])/i, backtick: AYN },
     { id: 'ar-saadi', qulId: 308, language: 'ar', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^tafsir-as-saadi(?![\w-])/i, backtick: AYN },
-    { id: 'ar-siraj', qulId: 250, language: 'ar', name: 'As-Siraj fi Bayan Gharib al-Quran', author: 'Muhammad al-Khudayri', file: /^asseraj-fi-bayan-gharib-alquran(?![\w-])/i, backtick: AYN },
     { id: 'ar-mukhtasar', qulId: 251, language: 'ar', name: 'Al-Mukhtasar fi Tafsir al-Quran', file: /^arabic-al-mukhtasar-in-interpreting-the-noble-quran(?![\w-])/i, backtick: AYN },
     { id: 'ar-tabari', qulId: 37, language: 'ar', name: 'Tafsir al-Tabari', author: 'Ibn Jarir al-Tabari', file: /^ar-tafsir-al-tabari(?![\w-])/i, backtick: AYN },
     { id: 'ar-qurtubi', qulId: 23, language: 'ar', name: 'Tafsir al-Qurtubi', author: 'Abu Abdillah al-Qurtubi', file: /^ar-tafseer-al-qurtubi(?![\w-])/i, backtick: AYN },
@@ -85,17 +84,17 @@ export const QUL_TAFSIRS: QulTafsir[] = [
     { id: 'ar-abi-al-suud', qulId: 497, language: 'ar', name: 'Irshad al-Aql as-Salim', author: 'Abu as-Suud', file: /^tafsir-abi-al-su-ood(?![\w-])/i, backtick: AYN },
     { id: 'ar-mawardi', qulId: 512, language: 'ar', name: 'An-Nukat wa al-Uyun', author: 'Al-Mawardi', file: /^tafsir-al-mawardi(?![\w-])/i, backtick: AYN },
     { id: 'ar-zamakhshari', qulId: 510, language: 'ar', name: 'Al-Kashshaf', author: 'Az-Zamakhshari', file: /^al-kashshaf-al-zamakhshari(?![\w-])/i, backtick: AYN },
-    { id: 'it-mukhtasar', qulId: 253, language: 'it', name: 'Al-Mukhtasar', file: /^italian-mokhtasar(?![\w-])/i, backtick: AYN },
+    { id: 'it-mukhtasar', qulId: 253, language: 'it', name: 'Al-Mukhtasar', file: /^italian-mokhtasar(?![\w-])/i, backtick: '’' },
     { id: 'es-mukhtasar', qulId: 268, language: 'es', name: 'Al-Mukhtasar', file: /^spanish-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'tr-mukhtasar', qulId: 258, language: 'tr', name: 'Al-Mukhtasar', file: /^turkish-mokhtasar(?![\w-])/i, backtick: AYN },
-    { id: 'id-mukhtasar', qulId: 260, language: 'id', name: 'Al-Mukhtasar', file: /^indonesian-mokhtasar(?![\w-])/i, backtick: AYN },
+    { id: 'id-mukhtasar', qulId: 260, language: 'id', name: 'Al-Mukhtasar', file: /^indonesian-mokhtasar(?![\w-])/i, backtick: '’' },
     { id: 'fa-mukhtasar', qulId: 263, language: 'fa', name: 'Al-Mukhtasar', file: /^persian-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'bn-mukhtasar', qulId: 267, language: 'bn', name: 'Al-Mukhtasar', file: /^bengali-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'hi-mukhtasar', qulId: 535, language: 'hi', name: 'Al-Mukhtasar', file: /^hindi-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'zh-mukhtasar', qulId: 264, language: 'zh', name: 'Al-Mukhtasar', file: /^chinese-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'ja-mukhtasar', qulId: 265, language: 'ja', name: 'Al-Mukhtasar', file: /^japanese-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'bs-mukhtasar', qulId: 252, language: 'bs', name: 'Al-Mukhtasar', file: /^bosnian-mokhtasar(?![\w-])/i, backtick: AYN },
-    { id: 'ml-mukhtasar', qulId: 256, language: 'ml', name: 'Al-Mukhtasar', file: /^malayalam-mokhtasar(?![\w-])/i, backtick: AYN },
+    { id: 'ml-mukhtasar', qulId: 256, language: 'ml', name: 'Al-Mukhtasar', file: /^malayalam-mokhtasar(?![\w-])/i, backtick: '’' },
     { id: 'ta-mukhtasar', qulId: 554, language: 'ta', name: 'Al-Mukhtasar', file: /^tamil-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'te-mukhtasar', qulId: 540, language: 'te', name: 'Al-Mukhtasar', file: /^telugu-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'th-mukhtasar', qulId: 541, language: 'th', name: 'Al-Mukhtasar', file: /^thai-mokhtasar(?![\w-])/i, backtick: AYN },
@@ -108,7 +107,7 @@ export const QUL_TAFSIRS: QulTafsir[] = [
     { id: 'si-mukhtasar', qulId: 453, language: 'si', name: 'Al-Mukhtasar', file: /^sinhalese-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'km-mukhtasar', qulId: 257, language: 'km', name: 'Al-Mukhtasar', file: /^khmer-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'tl-mukhtasar', qulId: 254, language: 'tl', name: 'Al-Mukhtasar', file: /^tagalog-mokhtasar(?![\w-])/i, backtick: AYN },
-    { id: 'ug-mukhtasar', qulId: 539, language: 'ug', name: 'Al-Mukhtasar', file: /^uyghur-mokhtasar(?![\w-])/i, backtick: AYN },
+    { id: 'ug-mukhtasar', qulId: 539, language: 'ug', name: 'Al-Mukhtasar', file: /^uyghur-mokhtasar(?![\w-])/i, backtick: '' },
     { id: 'az-mukhtasar', qulId: 537, language: 'az', name: 'Al-Mukhtasar', file: /^azeri-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'as-mukhtasar', qulId: 255, language: 'as', name: 'Al-Mukhtasar', file: /^assamese-mokhtasar(?![\w-])/i, backtick: AYN },
     { id: 'ff-mukhtasar', qulId: 534, language: 'ff', name: 'Al-Mukhtasar', file: /^fulani-mokhtasar(?![\w-])/i, backtick: AYN },
@@ -210,7 +209,22 @@ export function toTafsirFile(
         }
         surahs[surah - 1]!.push({ from, to, blocks });
     }
-    for (const passages of surahs) passages.sort((a, b) => a.from - b.from);
+    // A few sources (Saadi, Zamakhshari) also list in a group the last verse of the group before it, whose
+    // text starts at the next verse (`{50}`): the verse stays with the first group.
+    surahs.forEach((passages, index) => {
+        passages.sort((a, b) => a.from - b.from);
+        for (let i = 1; i < passages.length; i++) {
+            const previous = passages[i - 1]!;
+            const passage = passages[i]!;
+            if (passage.from > previous.to) continue;
+            options.warn(`${tafsir.id}: ${index + 1}:${passage.from}-${passage.to} overlaps ${index + 1}:${previous.from}-${previous.to}`);
+            if (passage.to <= previous.to) {
+                passages.splice(i--, 1);
+            } else {
+                passage.from = previous.to + 1;
+            }
+        }
+    });
 
     const verseCount = surahs.flat().reduce((sum, passage) => sum + passage.to - passage.from + 1, 0);
     const missing = QURAN_VERSE_COUNTS.reduce((sum, count) => sum + count, 0) - verseCount;

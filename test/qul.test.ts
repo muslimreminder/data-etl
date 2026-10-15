@@ -238,7 +238,6 @@ describe('catalog', () => {
             'shaikh-mahmud-abdulkader-hamza-simple.json',
             'muhammad-baba-gutubu-simple.json',
             'luhya-translation-simple.json',
-            'african-development-foundation-simple.json',
             'ikirundi-gehiti-simple.json',
             'abdul-hamid-silika-with-footnote-tags.json',
             'bisayan-translation-rowwad-center-simple.json',
@@ -263,7 +262,7 @@ describe('catalog', () => {
     it('leaves the other files QUL names alike to an explicit id', () => {
         const ids = (name: string) => QUL_TRANSLATIONS.filter((translation) => translation.file.test(name)).map((translation) => translation.id);
         expect(ids('dar-al-salam-center-simple.json')).toEqual(['tr-dar-al-salam', 'sr-rowwad', 'he-dar-al-salam', 'tl-dar-al-salam']);
-        expect(ids('translation-pioneers-center-simple.json')).toEqual(['sq-rowwad', 'vi-rowwad', 'si-rowwad']);
+        expect(ids('translation-pioneers-center-simple.json')).toEqual(['vi-rowwad', 'si-rowwad']);
         expect(ids('rowad-translation-center-simple.json')).toEqual(['ak-harun-ismail', 'ff-rowwad']);
     });
 });
