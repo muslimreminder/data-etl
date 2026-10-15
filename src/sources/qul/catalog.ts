@@ -126,7 +126,7 @@ export const QUL_TRANSLATIONS: QulTranslation[] = [
     { id: 'luy-center', qulId: 444, language: 'luy', name: 'Luhya translation', format: 'simple', file: /^luhya-translation-(?:simple|with-footnote-tags)/i },
     { id: 'lg-african-development', qulId: 217, language: 'lg', name: 'African Development Foundation', format: 'simple', file: /^african-development-foundation-(?:simple|with-footnote-tags)/i },
     { id: 'rn-gehiti', qulId: 272, language: 'rn', name: 'Yusuf Gahiti', format: 'simple', file: /^ikirundi-gehiti-(?:simple|with-footnote-tags)/i },
-    { id: 'mos-rowwad', qulId: 270, language: 'mos', name: 'Rowwad Translation Center', format: 'simple', file: /moore|mos-/i },
+    { id: 'mos-rowwad', qulId: 270, language: 'mos', name: 'Rowwad Translation Center', format: 'simple', file: /^moore-rwwad-(?:simple|with-footnote-tags)/i },
     { id: 'yao-silika', qulId: 286, language: 'yao', name: 'Abdul Hamid Silika', format: 'footnote-tags', file: /^abdul-hamid-silika-(?:simple|with-footnote-tags)/i },
     { id: 'ceb-rowwad', qulId: 443, language: 'ceb', name: 'Rowwad Translation Center', format: 'simple', file: /^bisayan-translation-rowwad-center-(?:simple|with-footnote-tags)/i },
     { id: 'mdh-rowwad', qulId: 445, language: 'mdh', name: 'Rowwad Translation Center', format: 'simple', file: /^maguindanao-rwwad-(?:simple|with-footnote-tags)/i },

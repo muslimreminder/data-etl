@@ -172,7 +172,6 @@ describe("buildTafsirFiles", () => {
       "azeri-mokhtasar.json",
       "assamese-mokhtasar.json",
       "fulani-mokhtasar.json",
-      "id-tafsir-as-saadi.json",
       "fr-tafsir-as-saadi.json",
       "tafsir-as-saadi.json",
       "tafsir-as-saadi.json",
