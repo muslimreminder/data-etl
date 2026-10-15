@@ -37,7 +37,6 @@ export const QUL_RECITATIONS: QulRecitation[] = [
     { id: 'ar-rifai', qulId: 104, reciter: 'Hani ar-Rifai', style: 'murattal', file: /^ayah-recitation-hani-ar-rifai/i },
     { id: 'al-tunaiji', qulId: 109, reciter: 'Khalifa Al Tunaiji', style: 'murattal', file: /^ayah-recitation-khalifa-al-tunaiji/i },
     { id: 'alnufais', qulId: 471, reciter: 'Ahmad Alnufais', style: 'murattal', file: /^ayah-recitation-alnufais/i },
-    // File names below guessed from QUL's naming (not downloaded yet): a mismatch fails the sync with the real name.
     { id: 'al-tablawi', qulId: 106, reciter: 'Mohamed al-Tablawi', style: 'murattal', file: /^ayah-recitation-.*tablawi/i },
     { id: 'al-shuraim', qulId: 107, reciter: 'Saud Al-Shuraim', style: 'murattal', file: /^ayah-recitation-.*shuraim/i },
     { id: 'al-husary-mujawwad', qulId: 111, reciter: 'Mahmoud Khalil Al-Husary', style: 'mujawwad', file: /^ayah-recitation-.*husary.*mujawwad/i },
@@ -46,6 +45,7 @@ export const QUL_RECITATIONS: QulRecitation[] = [
     { id: 'abdul-basit', qulId: 115, reciter: 'Abdul Basit Abdul Samad', style: 'murattal', file: /^ayah-recitation-.*basit(?!.*mujawwad)/i },
     { id: 'alafasy', qulId: 118, reciter: 'Mishari Rashid al-Afasy', style: 'murattal', file: /^ayah-recitation-.*afasy/i },
     { id: 'al-ghamdi', qulId: 119, reciter: 'Saad al-Ghamdi', style: 'murattal', file: /^ayah-recitation-.*ghamdi/i },
+    { id: 'al-shatri', qulId: 117, reciter: 'Abu Bakr al-Shatri', style: 'murattal', file: /^ayah-recitation-.*shatri/i },
 ];
 
 export const qulRecitationSourceKey = (id: QuranRecitationId) => `qul/recitations/${id}.json`;
