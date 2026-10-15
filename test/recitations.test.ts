@@ -191,15 +191,15 @@ describe('QUL ayah recitations', () => {
             'ayah-recitation-hani-ar-rifai-recitation-murattal-hafs-68.json': 'ar-rifai',
             'ayah-recitation-khalifa-al-tunaiji-murattal-hafs-958.json': 'al-tunaiji',
             'ayah-recitation-alnufais.json': 'alnufais',
-            // Guessed from QUL's naming, until a signed-in run shows the real names.
-            'ayah-recitation-mohamed-al-tablawi-murattal-hafs.json': 'al-tablawi',
-            'ayah-recitation-saud-al-shuraim-murattal-hafs.json': 'al-shuraim',
-            'ayah-recitation-mahmoud-khalil-al-husary-mujawwad-hafs.json': 'al-husary-mujawwad',
-            'ayah-recitation-maher-al-muaiqly-murattal-hafs.json': 'al-muaiqly',
-            'ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs.json': 'abdul-basit-mujawwad',
-            'ayah-recitation-abdul-basit-abdul-samad-murattal-hafs.json': 'abdul-basit',
-            'ayah-recitation-mishari-rashid-al-afasy-murattal-hafs.json': 'alafasy',
-            'ayah-recitation-saad-al-ghamdi-murattal-hafs.json': 'al-ghamdi',
+            'ayah-recitation-mohamed-al-tablawi-recitation-murattal-hafs-73.json': 'al-tablawi',
+            'ayah-recitation-saud-al-shuraim-murattal-hafs-960.json': 'al-shuraim',
+            'ayah-recitation-mahmoud-khalil-al-husary-mujawwad-hafs-956.json': 'al-husary-mujawwad',
+            'ayah-recitation-maher-al-mu-aiqly-murattal-hafs-948.json': 'al-muaiqly',
+            'ayah-recitation-abdul-basit-abdul-samad-mujawwad-hafs-949.json': 'abdul-basit-mujawwad',
+            'ayah-recitation-abdul-basit-abdul-samad-murattal-hafs-950.json': 'abdul-basit',
+            'ayah-recitation-mishari-rashid-al-afasy-murattal-hafs-953.json': 'alafasy',
+            'ayah-recitation-saad-al-ghamdi-murattal-hafs-954.json': 'al-ghamdi',
+            'ayah-recitation-abu-bakr-al-shatri-murattal-hafs-952.json': 'al-shatri',
         };
         for (const [name, id] of Object.entries(downloads)) {
             const matching = QUL_RECITATIONS.filter((entry) => entry.file.test(name));
