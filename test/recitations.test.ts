@@ -199,6 +199,7 @@ describe('QUL ayah recitations', () => {
             'ayah-recitation-abdul-basit-abdul-samad-murattal-hafs-950.json': 'abdul-basit',
             'ayah-recitation-mishari-rashid-al-afasy-murattal-hafs-953.json': 'alafasy',
             'ayah-recitation-saad-al-ghamdi-murattal-hafs-954.json': 'al-ghamdi',
+            'ayah-recitation-abu-bakr-al-shatri-murattal-hafs-952.json': 'al-shatri',
         };
         for (const [name, id] of Object.entries(downloads)) {
             const matching = QUL_RECITATIONS.filter((entry) => entry.file.test(name));
