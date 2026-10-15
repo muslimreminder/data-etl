@@ -52,7 +52,8 @@ export const QUL_TAFSIRS: QulTafsir[] = [
     { id: 'sq-saadi', qulId: 283, language: 'sq', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^sq-saadi/i, backtick: '’' },
     // Free to republish: QuranEnc.com tafsirs (Muyassar, Saadi, Siraj, Mukhtasar) and classical works in the
     // public domain. Left out: modern works under copyright (Tahrir wa Tanwir, Al-Wasit, Adwa al-Bayan…), and
-    // Al-Baydawi, Ad-Durr al-Manthur and Al-Wajiz (518, 493, 489) and the Indonesian Saadi (503), whose QUL files are not in the tafsir format.
+    // Al-Baydawi, Ad-Durr al-Manthur, Al-Wajiz and the Indonesian Saadi (518, 493, 489, 503), whose QUL files are
+    // not in the tafsir format.
     { id: 'ar-muyassar', qulId: 38, language: 'ar', name: 'Tafsir al-Muyassar', author: 'King Fahd Quran Complex', file: /^ar-tafsir-muyassar(?![\w-])/i, backtick: AYN },
     { id: 'ar-saadi', qulId: 308, language: 'ar', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^tafsir-as-saadi(?![\w-])/i, backtick: AYN },
     { id: 'ar-siraj', qulId: 250, language: 'ar', name: 'As-Siraj fi Bayan Gharib al-Quran', author: 'Muhammad al-Khudayri', file: /^asseraj-fi-bayan-gharib-alquran(?![\w-])/i, backtick: AYN },
