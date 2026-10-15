@@ -9,8 +9,8 @@ const USER_AGENT = 'muslimreminder-data-etl (+https://github.com/muslimreminder/
 /** A resource listed on `https://qul.tarteel.ai/resources/<type>`. */
 export type QulListedResource = { type: QulResourceType; id: number; name: string };
 
-/** A downloaded file: its name in the zip QUL serves, its bytes as they are, and its text. */
-export type QulDownload = { name: string; bytes: Uint8Array; text: string };
+/** A downloaded file: its name in the zip QUL serves, and its bytes as they are. */
+export type QulDownload = { name: string; bytes: Uint8Array };
 
 /**
  * The QUL website, read the way a signed-in browser does. QUL has no API: resource pages are public,
@@ -61,7 +61,7 @@ export class QulSite {
         if (!file.ok) throw new Error(`downloading ${page} (${format}) answered HTTP ${file.status}`);
         const bytes = new Uint8Array(await file.arrayBuffer());
         const entry = unzipSingle(bytes);
-        return { name: entry.name, bytes: entry.data, text: new TextDecoder('utf-8', { fatal: true }).decode(entry.data) };
+        return { name: entry.name, bytes: entry.data };
     }
 
     private async text(path: string, signedIn: boolean) {
