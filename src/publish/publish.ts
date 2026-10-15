@@ -9,7 +9,7 @@ import {
     type ManifestFile,
 } from '@muslimreminder/schema/content';
 import type { z } from 'zod';
-import type { OutputFile } from '../output.ts';
+import type { OutputAsset, OutputFile } from '../output.ts';
 import type { ContentStorage } from './storage.ts';
 
 /** Hashed files never change: cached for a year by the CDN and the apps. */
@@ -40,18 +40,30 @@ export async function readPublished<T extends z.ZodType>(
 export type PublishResult = { uploaded: string[]; unchanged: number; manifestUpdated: boolean };
 
 /**
- * Uploads new or changed files first, then the manifest last, so that a client never
+ * Uploads the assets (binary files the content refers to) first, then new or changed files, then the manifest last, so that a client never
  * sees a manifest pointing to a file that is not there yet. Keys not in `files` are kept.
  */
 export async function publish(
     storage: ContentStorage,
     files: OutputFile[],
-    options: { previous: Manifest | undefined; now: Date; dryRun: boolean; log: (message: string) => void },
+    options: { previous: Manifest | undefined; now: Date; dryRun: boolean; log: (message: string) => void; assets?: OutputAsset[] },
 ): Promise<PublishResult> {
     const { previous, dryRun, log } = options;
     const entries: Record<string, ManifestFile> = { ...previous?.files };
     const uploaded: string[] = [];
     let unchanged = 0;
+
+    // Hashed paths: an asset already there is the same file.
+    for (const asset of options.assets ?? []) {
+        if (await storage.exists(objectKey(asset.path))) {
+            unchanged++;
+            continue;
+        }
+        uploaded.push(asset.path);
+        if (!dryRun) {
+            await storage.putBytes(objectKey(asset.path), asset.bytes, { contentType: asset.contentType, cacheControl: IMMUTABLE_CACHE });
+        }
+    }
 
     for (const file of files) {
         const body = JSON.stringify(file.data);
