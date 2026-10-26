@@ -8,6 +8,10 @@ describe('telegramTargetFromEnv', () => {
         expect(telegramTargetFromEnv({ TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: '-1', TELEGRAM_TOPIC_ID: '' })).toEqual({ token: 't', chatId: '-1' });
         expect(telegramTargetFromEnv({ TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: '-1', TELEGRAM_TOPIC_ID: '4' })).toEqual({ token: 't', chatId: '-1', topicId: 4 });
     });
+
+    it('rejects a topic that is not an id', () => {
+        expect(() => telegramTargetFromEnv({ TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: '-1', TELEGRAM_TOPIC_ID: 'qul' })).toThrow(/TELEGRAM_TOPIC_ID/);
+    });
 });
 
 describe('joinWithinLimit', () => {

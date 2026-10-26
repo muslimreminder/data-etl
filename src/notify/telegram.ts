@@ -11,6 +11,8 @@ export function telegramTargetFromEnv(env: NodeJS.ProcessEnv = process.env): Tel
     const chatId = env.TELEGRAM_CHAT_ID?.trim();
     if (!token || !chatId) return undefined;
     const topic = env.TELEGRAM_TOPIC_ID?.trim();
+    // A mistyped topic would silently land in the General one: fail instead.
+    if (topic && !/^\d+$/.test(topic)) throw new Error(`TELEGRAM_TOPIC_ID must be a topic id, got "${topic}"`);
     return { token, chatId, ...(topic && { topicId: Number(topic) }) };
 }
 

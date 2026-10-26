@@ -44,9 +44,9 @@ jobs:
         env:
           QUL_TOKEN: ${{ secrets.QUL_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          # "Muslim Reminder — Tickets" group, General topic: set a topic id once a QUL topic exists.
+          # "Muslim Reminder — Tickets" group, QUL topic (https://t.me/c/4133995291/34).
           TELEGRAM_CHAT_ID: '-1004133995291'
-          TELEGRAM_TOPIC_ID: ''
+          TELEGRAM_TOPIC_ID: '34'
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

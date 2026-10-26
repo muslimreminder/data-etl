@@ -50,7 +50,7 @@ for every resource of the QUL catalogs ([`src/sources/qul/resources.ts`](src/sou
 3. runs the ETL for the changed kinds of content, then starts **Mirror recitation audio** for the
    changed recitations;
 4. compares the QUL listings with `qul/known-resources.json` (sources bucket) and posts the resources
-   QUL added on the Muslim Reminder Telegram group (General topic; failures are posted there too). Adding one stays a choice: append it to its catalog (QUL id = the
+   QUL added on the Muslim Reminder Telegram group (QUL topic; failures are posted there too). Adding one stays a choice: append it to its catalog (QUL id = the
    number in its page URL), merge, and the next sync downloads and publishes it.
 
 The app then refreshes its embedded catalogs through its own **Embed content** workflow (a PR).
