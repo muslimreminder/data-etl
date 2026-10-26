@@ -45,7 +45,7 @@ export const QUL_TAFSIRS: QulTafsir[] = [
     { id: 'ar-ibn-abi-zamanin', qulId: 499, language: 'ar', name: 'Tafsir Ibn Abi Zamanin', author: 'Ibn Abi Zamanin', file: /^tafsir-ibn-abi-zamanin/i, backtick: AYN },
     { id: 'en-ibn-kathir', qulId: 35, language: 'en', name: 'Tafsir Ibn Kathir (abridged)', author: 'Ismail ibn Kathir', file: /^en-taf(?:si|is)r-ibn-kathir/i, backtick: AYN },
     { id: 'en-mukhtasar', qulId: 266, language: 'en', name: 'Al-Mukhtasar (Abridged Explanation of the Quran)', file: /^abridged-explanation-of-the-quran/i, backtick: AYN },
-    { id: 'fr-mukhtasar', qulId: 259, language: 'fr', name: 'Al-Mukhtasar (L’Exégèse abrégée du Coran)', file: /^french-mokhtasar/i, backtick: '' },
+    { id: 'fr-mukhtasar', qulId: 259, language: 'fr', name: 'Al-Mukhtasar (L’Exégèse abrégée du Coran)', file: /^(?:french-mokhtasar|fr-mukhtasar)/i, backtick: '' },
     { id: 'ru-ibn-kathir', qulId: 307, language: 'ru', name: 'Tafsir Ibn Kathir', author: 'Ismail ibn Kathir', file: /^ru-tafsir-ibne?-ka(?:h?t|th)h?ir/i, backtick: AYN },
     { id: 'ru-saadi', qulId: 310, language: 'ru', name: 'Tafsir as-Saadi', author: 'Abd ar-Rahman as-Saadi', file: /^tafsir-as-saadi-russian/i, backtick: AYN, joinHyphenatedWords: true },
     { id: 'ru-mukhtasar', qulId: 262, language: 'ru', name: 'Al-Mukhtasar', file: /^russian-mokhtasar/i, backtick: AYN },
