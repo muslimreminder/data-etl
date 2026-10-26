@@ -197,5 +197,7 @@ describe("buildTafsirFiles", () => {
       QUL_TAFSIRS.map((tafsir) => (saadi.includes(tafsir.id) ? saadi : [tafsir.id])),
     );
     expect(QUL_TAFSIRS.filter((tafsir) => tafsir.file.test("tr-tafsir-ibne-kathir.json"))).toEqual([]);
+    // QUL renamed the French Mukhtasar file when it updated it (September 2026).
+    expect(QUL_TAFSIRS.filter((tafsir) => tafsir.file.test("fr-mukhtasar.json")).map((tafsir) => tafsir.id)).toEqual(["fr-mukhtasar"]);
   });
 });
