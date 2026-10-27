@@ -7,12 +7,14 @@
 //
 // GOOGLE_PLAY_SA_JSON: JSON key of a service account invited in Play Console with "View app information and
 // download bulk reports" on the app. Env: PLAY_PACKAGE_NAME, PLAY_REPORTS_BUCKET (pubsite_prod_<developer id>),
-// MIN_VERSION_CODE (default 122), and for Telegram TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOPIC_ID.
+// MIN_VERSION_CODE (default 122), for Sentry release health (optional, skipped without a token) SENTRY_AUTH_TOKEN
+// (scopes org:read, project:read), SENTRY_ORG, SENTRY_PROJECT, SENTRY_MIN_VERSION (default 1.1.1), and for Telegram TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOPIC_ID.
 // --dry-run prints the message instead of posting it. Without --dry-run, prints no figure (the repo is public).
 import { parseArgs } from 'node:util';
 import { googleAccessToken, type ServiceAccountKey } from '../src/kpis/google-auth.ts';
 import { formatKpis, type KpiReport } from '../src/kpis/message.ts';
 import { PLAY_SCOPES, PlayKpis } from '../src/kpis/play.ts';
+import { SentryKpis } from '../src/kpis/sentry.ts';
 import { sendTelegram, telegramTargetFromEnv } from '../src/notify/telegram.ts';
 
 const { values } = parseArgs({ options: { 'dry-run': { type: 'boolean', default: false } } });
@@ -36,7 +38,20 @@ if (!values['dry-run'] && !telegram) {
     process.exit(1);
 }
 
-const report: KpiReport = { app: 'Muslim Reminder', minVersionCode, errors: [], today: new Date().toISOString().slice(0, 10) };
+const today = new Date().toISOString().slice(0, 10);
+const report: KpiReport = { app: 'Muslim Reminder', minVersionCode, errors: [], today };
+const sentryToken = process.env.SENTRY_AUTH_TOKEN?.trim();
+const sentry = sentryToken
+    ? (async () => {
+          const minVersion = process.env.SENTRY_MIN_VERSION?.trim() || '1.1.1';
+          const client = new SentryKpis(sentryToken, process.env.SENTRY_ORG?.trim() || 'muslimreminder', process.env.SENTRY_PROJECT?.trim() || 'muslimereminder-app');
+          try {
+              report.sentry = { minVersion, users: await client.activeUsers(minVersion, today) };
+          } catch (error) {
+              report.errors.push(`Sentry : ${error instanceof Error ? error.message : error}`);
+          }
+      })()
+    : undefined;
 try {
     const play = new PlayKpis(await googleAccessToken(key, PLAY_SCOPES), packageName);
     const [activeUsers, installs] = await Promise.allSettled([play.activeUsers(minVersionCode), play.installs(bucket)]);
@@ -49,6 +64,8 @@ try {
 }
 if (!report.activeUsers?.length && !report.errors.some((e) => e.startsWith('Utilisateurs'))) report.errors.push('Utilisateurs actifs : aucune donnée');
 if (!report.installs?.length && !report.errors.some((e) => e.startsWith('Téléchargements'))) report.errors.push('Téléchargements : aucun rapport');
+
+await sentry;
 
 const message = formatKpis(report);
 if (telegram) {
