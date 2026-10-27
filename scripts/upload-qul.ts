@@ -42,7 +42,7 @@ for (const arg of args) {
             matches.set(translation, explicit[2]!);
         }
     } else if ((await stat(arg)).isDirectory()) {
-        files.push(...(await readdir(arg)).filter((name) => name.endsWith('.json')).map((name) => join(arg, name)));
+        files.push(...(await readdir(arg)).filter((name) => /\.(json|sqlite|db)$/.test(name)).map((name) => join(arg, name)));
     } else {
         files.push(arg);
     }
@@ -79,7 +79,7 @@ for (const [translation, found] of candidates) {
 const uploads: { translation: Resource; file: string }[] = [];
 for (const [translation, file] of matches) {
     try {
-        translation.check(await readFile(file, 'utf8'));
+        translation.check(new Uint8Array(await readFile(file)));
         uploads.push({ translation, file });
     } catch (error) {
         console.error(`${file}: ${(error as Error).message}`);
@@ -99,7 +99,7 @@ for (const { translation, file } of uploads) {
     if (dryRun) continue;
     execFileSync(
         'npx',
-        ['-y', 'wrangler@4', 'r2', 'object', 'put', `${BUCKET}/${key}`, '--remote', '--file', file, '--content-type', 'application/json'],
+        ['-y', 'wrangler@4', 'r2', 'object', 'put', `${BUCKET}/${key}`, '--remote', '--file', file, '--content-type', translation.contentType ?? 'application/json'],
         { stdio: ['ignore', 'ignore', 'inherit'] },
     );
 }
