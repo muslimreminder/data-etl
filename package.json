@@ -14,7 +14,8 @@
     "upload-dump": "bash scripts/upload-dump.sh",
     "upload-qul": "node scripts/upload-qul.ts",
     "mirror-audio": "node scripts/mirror-audio.ts",
-    "sync-qul": "node scripts/sync-qul.ts"
+    "sync-qul": "node scripts/sync-qul.ts",
+    "play-kpis": "node scripts/play-kpis.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1139.0",

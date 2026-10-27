@@ -167,6 +167,31 @@ In production: GitHub Actions → **Publish content** (manual, `content`, option
 `dry_run`, plus a monthly schedule for hadiths). Secrets (organization): `SUNNAH_API_KEY`, `R2_ACCOUNT_ID`,
 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
 
+## Play KPIs
+
+The **Play KPIs** workflow (every day at 7:00 UTC, or by hand) posts the Google Play figures of the app on
+the Muslim Reminder Telegram group, each with its change since the day before:
+
+- **active users**: distinct users of the day from the Android vitals (Play Developer Reporting API, only
+  users who share usage & diagnostics with Google, so below the real count), in total and on the versions
+  from `MIN_VERSION_CODE` (122 = v1.1.1), with the crash rate of those versions;
+- **new installs** (*Daily User Installs*) and uninstalls, from the monthly installs reports Play Console
+  writes to its Cloud Storage bucket (`pubsite_prod_<developer id>`).
+
+The vitals lag by ~1-2 days and the installs reports by ~2-3 days: each figure says its day. A source that
+fails is reported in the message (⚠️) and fails the run; the other is still posted. The repo is public: the
+job logs no figure.
+
+Access: the `play-kpis@muslim-reminder-kpis.iam.gserviceaccount.com` service account (Google Cloud project
+`muslim-reminder-kpis`, Play Developer Reporting API enabled), invited in Play Console → Users and
+permissions with **View app information and download bulk reports (read only)**. Its JSON key is the
+`GOOGLE_PLAY_SA_JSON` repository secret. Locally:
+
+```sh
+GOOGLE_PLAY_SA_JSON="$(cat ~/.config/muslimreminder/play-kpis-sa.json)" PLAY_REPORTS_BUCKET=pubsite_prod_4676255388611429065 \
+  npm run play-kpis -- --dry-run   # prints the message instead of posting it
+```
+
 ## Development
 
 ```sh
