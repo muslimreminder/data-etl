@@ -1,0 +1,37 @@
+name: Play KPIs
+
+# Every morning: posts the Google Play KPIs of the app on the Muslim Reminder Telegram group (active users, on the
+# versions >= MIN_VERSION_CODE too, and new installs). The repo is public: the job logs no figure.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  kpis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Post the KPIs
+        env:
+          GOOGLE_PLAY_SA_JSON: ${{ secrets.GOOGLE_PLAY_SA_JSON }}
+          PLAY_PACKAGE_NAME: com.mga5.buttontocount
+          # Play Console → Download reports → Statistics → "Copy Cloud Storage URI".
+          PLAY_REPORTS_BUCKET: pubsite_prod_4676255388611429065
+          # v1.1.1, the big update.
+          MIN_VERSION_CODE: '122'
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # "Muslim Reminder — Tickets" group, KPIs topic (https://t.me/c/4133995291/62).
+          TELEGRAM_CHAT_ID: '-1004133995291'
+          TELEGRAM_TOPIC_ID: '62'
+        run: npm run play-kpis
