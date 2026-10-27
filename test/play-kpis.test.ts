@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { googleAccessToken } from '../src/kpis/google-auth.ts';
 import { formatKpis } from '../src/kpis/message.ts';
 import { addDays, decodeReport, parseInstallsReport, PlayKpis, summarizeActiveUsers } from '../src/kpis/play.ts';
+import { compareVersions, releaseVersion, SentryKpis, summarizeSentryUsers } from '../src/kpis/sentry.ts';
 
 const date = (day: number) => ({ year: 2026, month: 10, day, timeZone: { id: 'America/Los_Angeles' } });
 const row = (day: number, metrics: Record<string, number>, versionCode?: string) => ({
@@ -127,5 +128,63 @@ describe('formatKpis', () => {
     it('flags vitals older than usual', () => {
         const message = formatKpis({ app: 'A', minVersionCode: 122, activeUsers: [{ day: '2026-10-18', total: 3000, sinceVersion: 0 }], errors: [], today: '2026-10-27' });
         expect(message).toContain('⏳ Données Google en retard : dernier jour disponible il y a 9 jours');
+    });
+});
+
+describe('Sentry release health', () => {
+    const sessions = (groups: { release?: string; users: number[]; crashFree?: (number | null)[] }[]) => ({
+        intervals: ['2026-10-25T00:00:00Z', '2026-10-26T00:00:00Z'],
+        groups: groups.map((g) => ({
+            by: g.release ? { release: g.release } : {},
+            series: { 'count_unique(user)': g.users, 'crash_free_rate(user)': g.crashFree ?? g.users.map(() => null) },
+        })),
+    });
+
+    it('compares versions numerically and reads them from release names', () => {
+        expect(releaseVersion('com.mga5.buttontocount@1.1.1+122')).toBe('1.1.1');
+        expect(compareVersions('1.10.0', '1.9.2')).toBeGreaterThan(0);
+        expect(compareVersions('1.1', '1.1.0')).toBe(0);
+        expect(compareVersions('1.0.9', '1.1.1')).toBeLessThan(0);
+    });
+
+    it('sums the releases from the threshold, per day', () => {
+        const total = sessions([{ users: [100, 120] }]);
+        const byRelease = sessions([
+            { release: 'com.app@1.0.0+100', users: [90, 60], crashFree: [0.8, 0.8] },
+            { release: 'com.app@1.1.1+122', users: [10, 50], crashFree: [1, 0.98] },
+            { release: 'org.app.ios@1.1.1+7', users: [0, 10], crashFree: [null, 1] },
+        ]);
+        const [previous, latest] = summarizeSentryUsers(total, byRelease, '1.1.1');
+        expect(previous).toEqual({ day: '2026-10-25', total: 100, sinceVersion: 10, crashFreeSinceVersion: 1 });
+        expect(latest).toMatchObject({ day: '2026-10-26', total: 120, sinceVersion: 60 });
+        expect(latest!.crashFreeSinceVersion).toBeCloseTo((0.98 * 50 + 10) / 60);
+    });
+
+    it('queries the last full UTC days of the project', async () => {
+        const urls: string[] = [];
+        const fetchImpl = (async (url: string) => {
+            urls.push(url);
+            if (url.includes('/projects/')) return Response.json({ id: '42' });
+            return Response.json(sessions(url.includes('groupBy') ? [{ release: 'a@1.1.1+1', users: [1, 2] }] : [{ users: [3, 4] }]));
+        }) as unknown as typeof fetch;
+        const users = await new SentryKpis('T', 'org', 'proj', fetchImpl).activeUsers('1.1.1', '2026-10-27');
+        expect(users.at(-1)).toEqual({ day: '2026-10-26', total: 4, sinceVersion: 2, crashFreeSinceVersion: 1 });
+        const query = new URL(urls[1]!).searchParams;
+        expect(query.get('project')).toBe('42');
+        expect(query.get('start')).toBe('2026-10-25T00:00:00Z');
+        expect(query.get('end')).toBe('2026-10-27T00:00:00Z');
+        expect(query.getAll('field')).toEqual(['count_unique(user)', 'crash_free_rate(user)']);
+    });
+
+    it('is reported with its change', () => {
+        const message = formatKpis({
+            app: 'A',
+            minVersionCode: 122,
+            sentry: { minVersion: '1.1.1', users: [{ day: '2026-10-25', total: 100, sinceVersion: 10 }, { day: '2026-10-26', total: 120, sinceVersion: 60, crashFreeSinceVersion: 0.9833 }] },
+            errors: [],
+        });
+        expect(message).toContain('🛰️ <b>Sentry</b> (Android + iOS) · lun. 26 oct.');
+        expect(message).toContain('Utilisateurs : 120 (+20 vs veille)');
+        expect(message).toContain('🆕 <b>v1.1.1+</b> : 60 · 50 % (+50 vs veille) · 98,33 % sans plantage');
     });
 });

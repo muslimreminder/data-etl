@@ -175,6 +175,10 @@ the Muslim Reminder Telegram group, each with its change since the day before:
 - **active users**: distinct users of the day from the Android vitals (Play Developer Reporting API, only
   users who share usage & diagnostics with Google, so below the real count), in total and on the versions
   from `MIN_VERSION_CODE` (122 = v1.1.1), with the crash rate of those versions;
+- **Sentry users** (release health of the app's sessions, Android + iOS): exact distinct users of the last
+  full UTC day, in total and on releases from `SENTRY_MIN_VERSION` (1.1.1), with their crash-free rate.
+  Only versions that ship Sentry count. Skipped without the `SENTRY_AUTH_TOKEN` repository secret (token of
+  a Sentry internal integration with *Organization: Read* and *Project: Read*);
 - **new installs** (*Daily User Installs*) and uninstalls, from the monthly installs reports Play Console
   writes to its Cloud Storage bucket (`pubsite_prod_<developer id>`).
 

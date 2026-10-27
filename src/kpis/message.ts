@@ -1,5 +1,6 @@
 import { escapeHtml } from '../notify/telegram.ts';
 import type { ActiveUsersDay, Day, InstallsDay } from './play.ts';
+import type { SentryUsersDay } from './sentry.ts';
 
 export type KpiReport = {
     app: string;
@@ -7,6 +8,8 @@ export type KpiReport = {
     /** Oldest first: the last entry is reported, the one before it gives the change. */
     activeUsers?: ActiveUsersDay[];
     installs?: InstallsDay[];
+    /** Release health, when a Sentry token is configured. */
+    sentry?: { minVersion: string; users: SentryUsersDay[] };
     errors: string[];
     /** The day of the run, to flag vitals older than usual. */
     today?: Day;
@@ -47,6 +50,20 @@ export function formatKpis(report: KpiReport): string {
         if (crashes.length > 0) lines.push(`💥 Utilisateurs ayant planté : ${crashes.join(' · ')}`);
         const late = report.today && daysBetween(active.day, report.today) > STALE_AFTER_DAYS;
         if (late) lines.push(`⏳ Données Google en retard : dernier jour disponible il y a ${daysBetween(active.day, report.today!)} jours`);
+    }
+
+    const sentry = report.sentry?.users.at(-1);
+    if (sentry) {
+        const previous = report.sentry!.users.at(-2);
+        const version = `v${report.sentry!.minVersion}+`;
+        const share = sentry.total > 0 ? ` · ${percentFormat.format(sentry.sinceVersion / sentry.total)}` : '';
+        const crashFree = sentry.crashFreeSinceVersion !== undefined ? ` · ${crashFormat.format(sentry.crashFreeSinceVersion)} sans plantage` : '';
+        lines.push(
+            '',
+            `🛰️ <b>Sentry</b> (Android + iOS) · ${formatDay(sentry.day)}`,
+            `Utilisateurs : ${numberFormat.format(sentry.total)}${change(sentry.total, previous?.total)}`,
+            `🆕 <b>${version}</b> : ${numberFormat.format(sentry.sinceVersion)}${share}${change(sentry.sinceVersion, previous?.sinceVersion)}${crashFree}`,
+        );
     }
 
     const installs = report.installs?.at(-1);
