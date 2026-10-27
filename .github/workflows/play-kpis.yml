@@ -31,7 +31,7 @@ jobs:
           # v1.1.1, the big update.
           MIN_VERSION_CODE: '122'
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          # "Muslim Reminder — Tickets" group, General topic until a KPIs topic exists.
+          # "Muslim Reminder — Tickets" group, KPIs topic (https://t.me/c/4133995291/62).
           TELEGRAM_CHAT_ID: '-1004133995291'
-          TELEGRAM_TOPIC_ID: ''
+          TELEGRAM_TOPIC_ID: '62'
         run: npm run play-kpis

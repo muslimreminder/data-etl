@@ -36,7 +36,7 @@ if (!values['dry-run'] && !telegram) {
     process.exit(1);
 }
 
-const report: KpiReport = { app: 'Muslim Reminder', minVersionCode, errors: [] };
+const report: KpiReport = { app: 'Muslim Reminder', minVersionCode, errors: [], today: new Date().toISOString().slice(0, 10) };
 try {
     const play = new PlayKpis(await googleAccessToken(key, PLAY_SCOPES), packageName);
     const [activeUsers, installs] = await Promise.allSettled([play.activeUsers(minVersionCode), play.installs(bucket)]);

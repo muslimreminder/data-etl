@@ -8,7 +8,13 @@ export type KpiReport = {
     activeUsers?: ActiveUsersDay[];
     installs?: InstallsDay[];
     errors: string[];
+    /** The day of the run, to flag vitals older than usual. */
+    today?: Day;
 };
+
+/** The vitals usually lag by 1-2 days. */
+const STALE_AFTER_DAYS = 3;
+const daysBetween = (from: Day, to: Day) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 const numberFormat = new Intl.NumberFormat('fr-FR');
 const percentFormat = new Intl.NumberFormat('fr-FR', { style: 'percent', maximumFractionDigits: 1 });
@@ -30,10 +36,17 @@ export function formatKpis(report: KpiReport): string {
     if (active) {
         const previous = report.activeUsers?.at(-2);
         const version = `v${report.minVersionCode}+`;
-        lines.push('', `👥 <b>Utilisateurs actifs</b> · ${formatDay(active.day)}`, `${numberFormat.format(active.total)}${change(active.total, previous?.total)}`);
+        // Google rounds the vitals user counts (to the thousand for a few thousand users).
+        lines.push('', `👥 <b>Utilisateurs actifs</b> · ${formatDay(active.day)}`, `≈ ${numberFormat.format(active.total)}${change(active.total, previous?.total)}`);
         const share = active.total > 0 ? ` · ${percentFormat.format(active.sinceVersion / active.total)} des actifs` : '';
-        lines.push(`🆕 <b>${version}</b> : ${numberFormat.format(active.sinceVersion)}${share}${change(active.sinceVersion, previous?.sinceVersion)}`);
-        if (active.crashRateSinceVersion !== undefined) lines.push(`💥 Plantages ${version} : ${crashFormat.format(active.crashRateSinceVersion)} des utilisateurs`);
+        lines.push(`🆕 <b>${version}</b> : ≈ ${numberFormat.format(active.sinceVersion)}${share}${change(active.sinceVersion, previous?.sinceVersion)}`);
+        const crashes = [
+            active.crashRate !== undefined && `toutes versions ${crashFormat.format(active.crashRate)}`,
+            active.crashRateSinceVersion !== undefined && `${version} ${crashFormat.format(active.crashRateSinceVersion)}`,
+        ].filter(Boolean);
+        if (crashes.length > 0) lines.push(`💥 Utilisateurs ayant planté : ${crashes.join(' · ')}`);
+        const late = report.today && daysBetween(active.day, report.today) > STALE_AFTER_DAYS;
+        if (late) lines.push(`⏳ Données Google en retard : dernier jour disponible il y a ${daysBetween(active.day, report.today!)} jours`);
     }
 
     const installs = report.installs?.at(-1);

@@ -28,8 +28,10 @@ export const addDays = (day: Day, days: number): Day => new Date(Date.parse(`${d
 
 export type ActiveUsersDay = {
     day: Day;
-    /** Distinct users who used the app that day (only those sharing usage & diagnostics with Google). */
+    /** Distinct users who used the app that day (only those sharing usage & diagnostics with Google, rounded by Google). */
     total: number;
+    /** Crash rate (0-1) of all versions. Undefined without users. */
+    crashRate?: number;
     /** The same, on a version code >= the threshold. */
     sinceVersion: number;
     /** Crash rate (0-1) of the versions >= the threshold, weighted by their users. Undefined without users. */
@@ -47,9 +49,13 @@ const versionCode = (row: MetricRow) => {
  * The total comes from its own query: a user who updated during the day counts in two versions.
  */
 export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: MetricRow[], minVersionCode: number): ActiveUsersDay[] {
-    const days = new Map<Day, { total: number; users: number; crashes: number }>();
-    const entry = (day: Day) => days.get(day) ?? days.set(day, { total: 0, users: 0, crashes: 0 }).get(day)!;
-    for (const row of totalRows) entry(toDay(row.startTime)).total += metricValue(row, 'distinctUsers');
+    const days = new Map<Day, { total: number; totalCrashes: number; users: number; crashes: number }>();
+    const entry = (day: Day) => days.get(day) ?? days.set(day, { total: 0, totalCrashes: 0, users: 0, crashes: 0 }).get(day)!;
+    for (const row of totalRows) {
+        const day = entry(toDay(row.startTime));
+        day.total += metricValue(row, 'distinctUsers');
+        day.totalCrashes += metricValue(row, 'crashRate') * metricValue(row, 'distinctUsers');
+    }
     for (const row of versionRows) {
         if (!(versionCode(row) >= minVersionCode)) continue;
         const users = metricValue(row, 'distinctUsers');
@@ -59,7 +65,13 @@ export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: Metric
     }
     return [...days.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([day, { total, users, crashes }]) => ({ day, total, sinceVersion: users, ...(users > 0 && { crashRateSinceVersion: crashes / users }) }));
+        .map(([day, { total, totalCrashes, users, crashes }]) => ({
+            day,
+            total,
+            ...(total > 0 && { crashRate: totalCrashes / total }),
+            sinceVersion: users,
+            ...(users > 0 && { crashRateSinceVersion: crashes / users }),
+        }));
 }
 
 export type InstallsDay = { day: Day; userInstalls: number; userUninstalls: number };
@@ -148,7 +160,7 @@ export class PlayKpis {
             } while (pageToken);
             return rows;
         };
-        const [total, byVersion] = await Promise.all([query([], ['distinctUsers']), query(['versionCode'], ['distinctUsers', 'crashRate'])]);
+        const [total, byVersion] = await Promise.all([query([], ['distinctUsers', 'crashRate']), query(['versionCode'], ['distinctUsers', 'crashRate'])]);
         return summarizeActiveUsers(total, byVersion, minVersionCode);
     }
 

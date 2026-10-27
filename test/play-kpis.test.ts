@@ -18,7 +18,7 @@ it('adds days across months', () => {
 
 describe('summarizeActiveUsers', () => {
     it('keeps the total of its own query and the versions from the threshold', () => {
-        const total = [row(26, { distinctUsers: 1000 }), row(25, { distinctUsers: 900 })];
+        const total = [row(26, { distinctUsers: 1000, crashRate: 0.2 }), row(25, { distinctUsers: 900 })];
         const byVersion = [
             row(26, { distinctUsers: 700, crashRate: 0.01 }, '68'),
             row(26, { distinctUsers: 300, crashRate: 0.002 }, '122'),
@@ -26,8 +26,8 @@ describe('summarizeActiveUsers', () => {
             row(25, { distinctUsers: 900, crashRate: 0 }, '68'),
         ];
         const [previous, latest] = summarizeActiveUsers(total, byVersion, 122);
-        expect(previous).toEqual({ day: '2026-10-25', total: 900, sinceVersion: 0 });
-        expect(latest).toMatchObject({ day: '2026-10-26', total: 1000, sinceVersion: 400 });
+        expect(previous).toEqual({ day: '2026-10-25', total: 900, crashRate: 0, sinceVersion: 0 });
+        expect(latest).toMatchObject({ day: '2026-10-26', total: 1000, crashRate: 0.2, sinceVersion: 400 });
         expect(latest!.crashRateSinceVersion).toBeCloseTo(0.003);
     });
 });
@@ -68,7 +68,7 @@ describe('PlayKpis', () => {
             return Response.json({ rows: body.dimensions.length ? [row(26, { distinctUsers: 5, crashRate: 0 }, '122')] : [row(26, { distinctUsers: 8 })] });
         }) as unknown as typeof fetch;
         const users = await new PlayKpis('T', 'com.app', fetchImpl).activeUsers(122);
-        expect(users).toEqual([{ day: '2026-10-26', total: 8, sinceVersion: 5, crashRateSinceVersion: 0 }]);
+        expect(users).toEqual([{ day: '2026-10-26', total: 8, crashRate: 0, sinceVersion: 5, crashRateSinceVersion: 0 }]);
         expect(bodies[0]).toMatchObject({ timelineSpec: { aggregationPeriod: 'DAILY', startTime: date(25), endTime: date(27) } });
     });
 
@@ -110,15 +110,22 @@ describe('formatKpis', () => {
             minVersionCode: 122,
             activeUsers: [
                 { day: '2026-10-25', total: 900, sinceVersion: 100 },
-                { day: '2026-10-26', total: 1000, sinceVersion: 250, crashRateSinceVersion: 0.0012 },
+                { day: '2026-10-26', total: 1000, crashRate: 0.2149, sinceVersion: 250, crashRateSinceVersion: 0.0012 },
             ],
             errors: ['Téléchargements : HTTP 403 <denied>'],
+            today: '2026-10-27',
         });
         expect(message).toContain('👥 <b>Utilisateurs actifs</b> · lun. 26 oct.');
-        expect(message).toContain('1 000 (+100 vs veille)');
-        expect(message).toContain('🆕 <b>v122+</b> : 250 · 25 % des actifs (+150 vs veille)');
-        expect(message).toContain('0,12 % des utilisateurs');
+        expect(message).toContain('≈ 1 000 (+100 vs veille)');
+        expect(message).toContain('🆕 <b>v122+</b> : ≈ 250 · 25 % des actifs (+150 vs veille)');
+        expect(message).toContain('💥 Utilisateurs ayant planté : toutes versions 21,49 % · v122+ 0,12 %');
+        expect(message).not.toContain('⏳');
         expect(message).not.toContain('Nouveaux téléchargements');
         expect(message).toContain('⚠️ Téléchargements : HTTP 403 &lt;denied&gt;');
+    });
+
+    it('flags vitals older than usual', () => {
+        const message = formatKpis({ app: 'A', minVersionCode: 122, activeUsers: [{ day: '2026-10-18', total: 3000, sinceVersion: 0 }], errors: [], today: '2026-10-27' });
+        expect(message).toContain('⏳ Données Google en retard : dernier jour disponible il y a 9 jours');
     });
 });
