@@ -1,5 +1,5 @@
-// Google Play KPIs of an app: daily active users (Play Developer Reporting API, the Android vitals user counts) and
-// daily installs (the monthly installs reports Play Console writes to its Cloud Storage bucket).
+// Google Play KPIs of an app: the active users of a day (Play Developer Reporting API, the Android vitals user counts)
+// and the new installs of a day (the monthly installs reports Play Console writes to its Cloud Storage bucket).
 // Both sources lag: vitals by ~1-2 days, installs reports by ~2-3 days, so each KPI carries its own day.
 
 export const PLAY_SCOPES = ['https://www.googleapis.com/auth/playdeveloperreporting', 'https://www.googleapis.com/auth/devstorage.read_only'];
@@ -30,51 +30,31 @@ export type ActiveUsersDay = {
     day: Day;
     /** Distinct users who used the app that day (only those sharing usage & diagnostics with Google, rounded by Google). */
     total: number;
-    /** Crash rate (0-1) of all versions. Undefined without users. */
-    crashRate?: number;
     /** The same, on a version code >= the threshold. */
     sinceVersion: number;
-    /** Crash rate (0-1) of the versions >= the threshold, weighted by their users. Undefined without users. */
-    crashRateSinceVersion?: number;
 };
 
-const metricValue = (row: MetricRow, metric: string) => Number(row.metrics.find((m) => m.metric === metric)?.decimalValue?.value ?? 0);
+const distinctUsers = (row: MetricRow) => Number(row.metrics.find((m) => m.metric === 'distinctUsers')?.decimalValue?.value ?? 0);
 const versionCode = (row: MetricRow) => {
     const dimension = row.dimensions?.find((d) => d.dimension === 'versionCode');
     return Number(dimension?.stringValue ?? dimension?.int64Value ?? NaN);
 };
 
 /**
- * Folds the rows of the two vitals queries (all users, and by version code) into one entry per day, oldest first.
+ * The active users of the last day of the two vitals queries (all users, and by version code).
  * The total comes from its own query: a user who updated during the day counts in two versions.
  */
-export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: MetricRow[], minVersionCode: number): ActiveUsersDay[] {
-    const days = new Map<Day, { total: number; totalCrashes: number; users: number; crashes: number }>();
-    const entry = (day: Day) => days.get(day) ?? days.set(day, { total: 0, totalCrashes: 0, users: 0, crashes: 0 }).get(day)!;
-    for (const row of totalRows) {
-        const day = entry(toDay(row.startTime));
-        day.total += metricValue(row, 'distinctUsers');
-        day.totalCrashes += metricValue(row, 'crashRate') * metricValue(row, 'distinctUsers');
-    }
-    for (const row of versionRows) {
-        if (!(versionCode(row) >= minVersionCode)) continue;
-        const users = metricValue(row, 'distinctUsers');
-        const day = entry(toDay(row.startTime));
-        day.users += users;
-        day.crashes += metricValue(row, 'crashRate') * users;
-    }
-    return [...days.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([day, { total, totalCrashes, users, crashes }]) => ({
-            day,
-            total,
-            ...(total > 0 && { crashRate: totalCrashes / total }),
-            sinceVersion: users,
-            ...(users > 0 && { crashRateSinceVersion: crashes / users }),
-        }));
+export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: MetricRow[], minVersionCode: number): ActiveUsersDay | undefined {
+    const day = totalRows
+        .map((row) => toDay(row.startTime))
+        .sort()
+        .at(-1);
+    if (!day) return undefined;
+    const usersOf = (rows: MetricRow[]) => rows.filter((row) => toDay(row.startTime) === day).reduce((sum, row) => sum + distinctUsers(row), 0);
+    return { day, total: usersOf(totalRows), sinceVersion: usersOf(versionRows.filter((row) => versionCode(row) >= minVersionCode)) };
 }
 
-export type InstallsDay = { day: Day; userInstalls: number; userUninstalls: number };
+export type InstallsDay = { day: Day; userInstalls: number };
 
 /** Decodes a Play Console report: UTF-16 LE with a BOM (as Play writes them), else UTF-8. */
 export function decodeReport(bytes: Uint8Array): string {
@@ -93,10 +73,10 @@ export function parseInstallsReport(csv: string): InstallsDay[] {
         if (index < 0) throw new Error(`Installs report without a "${name}" column (columns: ${columns.join(', ')})`);
         return index;
     };
-    const [date, installs, uninstalls] = [column('Date'), column('Daily User Installs'), column('Daily User Uninstalls')];
+    const [date, installs] = [column('Date'), column('Daily User Installs')];
     return lines
         .map(cells)
-        .map((row) => ({ day: row[date]!, userInstalls: Number(row[installs] || 0), userUninstalls: Number(row[uninstalls] || 0) }))
+        .map((row) => ({ day: row[date]!, userInstalls: Number(row[installs] || 0) }))
         .sort((a, b) => a.day.localeCompare(b.day));
 }
 
@@ -119,18 +99,19 @@ export class PlayKpis {
         });
         if (!response.ok && response.status !== 404) {
             const text = await response.text();
-            // Google APIs answer {"error": {"message": …}}: keep the message alone.
+            // Google APIs answer {"error": {"message": …}}: keep the message alone. Cloud Storage escapes its quotes.
             let detail = text;
             try {
                 detail = (JSON.parse(text) as { error?: { message?: string } }).error?.message ?? text;
             } catch {}
+            detail = detail.replaceAll('&#39;', "'").replaceAll('&quot;', '"');
             throw new Error(`${new URL(url).host} answered HTTP ${response.status}: ${detail.slice(0, 300)}`);
         }
         return response;
     }
 
-    /** The active users of the last `days` days the vitals have data for, oldest first. */
-    async activeUsers(minVersionCode: number, days = 2): Promise<ActiveUsersDay[]> {
+    /** The active users of the last day the vitals have data for. */
+    async activeUsers(minVersionCode: number): Promise<ActiveUsersDay | undefined> {
         const metricSet = `${REPORTING_API}/apps/${this.packageName}/crashRateMetricSet`;
         const freshness = (await (await this.call(metricSet)).json()) as {
             freshnessInfo?: { freshnesses?: { aggregationPeriod: string; latestEndTime: ApiDate }[] };
@@ -140,14 +121,14 @@ export class PlayKpis {
         // latestEndTime is exclusive: the last full day ends there.
         const end = toDay(latestEnd);
 
-        const query = async (dimensions: string[], metrics: string[]) => {
+        const query = async (dimensions: string[]) => {
             const rows: MetricRow[] = [];
             let pageToken: string | undefined;
             do {
                 const body = {
-                    timelineSpec: { aggregationPeriod: 'DAILY', startTime: toApiDate(addDays(end, -days)), endTime: toApiDate(end) },
+                    timelineSpec: { aggregationPeriod: 'DAILY', startTime: toApiDate(addDays(end, -1)), endTime: toApiDate(end) },
                     dimensions,
-                    metrics,
+                    metrics: ['distinctUsers'],
                     pageSize: 1000,
                     ...(pageToken && { pageToken }),
                 };
@@ -160,12 +141,12 @@ export class PlayKpis {
             } while (pageToken);
             return rows;
         };
-        const [total, byVersion] = await Promise.all([query([], ['distinctUsers', 'crashRate']), query(['versionCode'], ['distinctUsers', 'crashRate'])]);
+        const [total, byVersion] = await Promise.all([query([]), query(['versionCode'])]);
         return summarizeActiveUsers(total, byVersion, minVersionCode);
     }
 
-    /** The daily installs of the current and previous months' reports, oldest first. */
-    async installs(bucket: string, today: Day = new Date().toISOString().slice(0, 10)): Promise<InstallsDay[]> {
+    /** The new installs of the last day of the current or previous month's report. */
+    async installs(bucket: string, today: Day = new Date().toISOString().slice(0, 10)): Promise<InstallsDay | undefined> {
         const month = (day: Day) => day.slice(0, 7).replace('-', '');
         const thisMonth = `${today.slice(0, 7)}-01`;
         const reports = await Promise.all(
@@ -177,6 +158,6 @@ export class PlayKpis {
                 return parseInstallsReport(decodeReport(new Uint8Array(await response.arrayBuffer())));
             }),
         );
-        return reports.flat();
+        return reports.flat().at(-1);
     }
 }
