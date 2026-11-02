@@ -170,13 +170,20 @@ In production: GitHub Actions → **Publish content** (manual, `content`, option
 ## Play KPIs
 
 The **Play KPIs** workflow (every day at 7:00 UTC, or by hand) posts the Google Play figures of the app on
-the Muslim Reminder Telegram group, each with its change since the day before:
+the Muslim Reminder Telegram group:
+
+```
+👥 Utilisateurs actifs · sam. 31 oct. : ≈ 4 000
+↳ dont v1.1.1+ : ≈ 2 000 (50 %)
+
+📥 Téléchargements · jeu. 29 oct. : 52
+```
 
 - **active users**: distinct users of the day from the Android vitals (Play Developer Reporting API, only
-  users who share usage & diagnostics with Google, so below the real count), in total and on the versions
-  from `MIN_VERSION_CODE` (122 = v1.1.1), with the crash rate of those versions;
-- **new installs** (*Daily User Installs*) and uninstalls, from the monthly installs reports Play Console
-  writes to its Cloud Storage bucket (`pubsite_prod_<developer id>`).
+  users who share usage & diagnostics with Google, so below the real count, and rounded by Google to the
+  thousand), in total and on the versions from `MIN_VERSION_CODE` (122, shown as `MIN_VERSION_NAME`, 1.1.1);
+- **downloads**: the new installs of the day (*Daily User Installs*), from the monthly installs reports Play
+  Console writes to its Cloud Storage bucket (`pubsite_prod_<developer id>`).
 
 The vitals lag by ~1-2 days and the installs reports by ~2-3 days: each figure says its day. A source that
 fails is reported in the message (⚠️) and fails the run; the other is still posted. The repo is public: the
