@@ -45,6 +45,14 @@ describe('toStoreReview', () => {
         expect(review.translation).toBeUndefined();
     });
 
+    it('falls back to the version code, and does not double the brand', () => {
+        const review = toStoreReview(
+            apiReview('r4', 1, { appVersionName: 'صلي علي محمد', appVersionCode: 68, deviceMetadata: { manufacturer: 'Redmi', productName: 'fog (Redmi 10C)' } }),
+        )!;
+        expect(review).toMatchObject({ appVersion: 'build 68', device: 'Redmi 10C' });
+        expect(formatReview(review)).toContain('📱 build 68 · Redmi 10C');
+    });
+
     it('skips a review without a user comment', () => {
         expect(toStoreReview({ reviewId: 'r3', comments: [] })).toBeUndefined();
     });

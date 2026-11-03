@@ -16,6 +16,7 @@ type UserComment = {
     device?: string;
     androidOsVersion?: number;
     appVersionName?: string;
+    appVersionCode?: number;
     deviceMetadata?: { productName?: string; manufacturer?: string };
 };
 export type ApiReview = { reviewId: string; authorName?: string; comments?: { userComment?: UserComment }[] };
@@ -37,6 +38,11 @@ export function toStoreReview({ reviewId, authorName, comments }: ApiReview): St
     // productName reads "a51 (Galaxy A51)": keep the commercial name.
     const model = productName?.match(/\((.+)\)$/)?.[1] ?? productName ?? comment.device;
     const level = comment.androidOsVersion;
+    // Old builds have the app name as version name: fall back to the version code.
+    const versionName = comment.appVersionName?.trim();
+    const version = versionName && /^\d+(\.\d+)*$/.test(versionName) ? versionName : comment.appVersionCode && `build ${comment.appVersionCode}`;
+    // "Redmi" + "Redmi 10C": no doubled brand.
+    const brand = manufacturer && !model?.toLowerCase().startsWith(manufacturer.toLowerCase()) ? manufacturer : undefined;
     return {
         platform: 'android',
         id: reviewId,
@@ -46,8 +52,8 @@ export function toStoreReview({ reviewId, authorName, comments }: ApiReview): St
         text: original || text,
         ...(original && original !== text && { translation: text }),
         ...(comment.reviewerLanguage && { language: comment.reviewerLanguage }),
-        ...(comment.appVersionName && { appVersion: comment.appVersionName }),
-        ...(model && { device: [manufacturer, model].filter(Boolean).join(' ') }),
+        ...(version && { appVersion: version }),
+        ...(model && { device: [brand, model].filter(Boolean).join(' ') }),
         ...(level && { osVersion: `Android ${ANDROID_VERSIONS[level] ?? `API ${level}`}` }),
         updatedAt: new Date(Number(comment.lastModified.seconds) * 1000).toISOString(),
     };

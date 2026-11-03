@@ -15,6 +15,7 @@ export type StoreReview = {
     language?: string;
     /** The text translated to French by the store, when the review is in another language. */
     translation?: string;
+    /** `1.1.1`, or `build 68` when the build has no version name. */
     appVersion?: string;
     device?: string;
     osVersion?: string;

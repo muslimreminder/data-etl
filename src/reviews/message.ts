@@ -29,7 +29,7 @@ export function formatReview(review: StoreReview, { edited, rating }: { edited?:
         const from = review.language ? ` (${languageName(review.language)})` : '';
         sections.push(`🇫🇷 <i>Traduction${escapeHtml(from)}</i>\n« ${escapeHtml(review.translation)} »`);
     }
-    const details = [review.appVersion && `v${review.appVersion}`, review.device, review.osVersion].filter(Boolean) as string[];
+    const details = [review.appVersion && (/^\d/.test(review.appVersion) ? `v${review.appVersion}` : review.appVersion), review.device, review.osVersion].filter(Boolean) as string[];
     if (details.length > 0) sections.push(`📱 ${escapeHtml(details.join(' · '))}`);
     if (rating) {
         sections.push(`⭐ <b>Note globale ${PLATFORMS[rating.platform]}</b> : ${averageFormat.format(rating.average)}/5 · ${numberFormat.format(rating.count)} notes`);
