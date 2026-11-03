@@ -199,6 +199,42 @@ GOOGLE_PLAY_SA_JSON="$(cat ~/.config/muslimreminder/play-kpis-sa.json)" PLAY_REP
   npm run play-kpis -- --dry-run   # prints the message instead of posting it
 ```
 
+## Store reviews
+
+The **Store reviews** workflow (every 30 minutes, or by hand) posts each new review of the app on the Reviews
+topic of the Muslim Reminder Telegram group, one message per review:
+
+```
+🆕 Nouvel avis · 🤖 Android
+★★★★☆ 4/5 · Amina
+
+« Great app, but the adhan is late »
+
+🇫🇷 Traduction (anglais)
+« Super appli, mais l'adhan est en retard »
+
+📱 v1.1.1 · Samsung Galaxy A51 · Android 14
+
+⭐ Note globale 🤖 Android : 4,86/5 · 31 615 notes
+```
+
+- **reviews**: Google Play Developer API, which only lists the reviews **with a text** of the **last week**
+  (a rating alone is not listed), translated to French by Google when written in another language. An edited
+  review is posted again (✏️ Avis modifié).
+- **overall rating**: read from the public Play Store page (the API does not give it); when it cannot be read,
+  the review is posted without it and the run fails.
+- The reviews already posted are kept in `reviews/seen.json` of the sources bucket. The first run only records
+  the existing ones.
+- Only Google Play for now: the messages carry the platform (🤖 Android / 🍎 iOS) for the App Store later.
+
+Access: the same service account as the Play KPIs, with **Reply to reviews** on the app in Play Console, and
+the **Google Play Android Developer API** enabled in its Google Cloud project. Locally:
+
+```sh
+GOOGLE_PLAY_SA_JSON="$(cat ~/.config/muslimreminder/play-kpis-sa.json)" \
+  npm run store-reviews -- --dry-run   # prints the 3 last reviews instead of posting them
+```
+
 ## Development
 
 ```sh

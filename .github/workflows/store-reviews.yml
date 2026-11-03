@@ -1,0 +1,42 @@
+name: Store reviews
+
+# Every 30 minutes: posts the new reviews of the app (Google Play) on the Muslim Reminder Telegram group, translated
+# to French, with the overall rating of the app. The reviews already posted are kept in the sources bucket.
+# The repo is public: the job logs no review.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+
+permissions:
+  contents: read
+
+# Two runs at once would post the same reviews twice.
+concurrency:
+  group: store-reviews
+  cancel-in-progress: false
+
+jobs:
+  reviews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+
+      - name: Post the new reviews
+        env:
+          GOOGLE_PLAY_SA_JSON: ${{ secrets.GOOGLE_PLAY_SA_JSON }}
+          PLAY_PACKAGE_NAME: com.mga5.buttontocount
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # "Muslim Reminder — Tickets" group, Reviews topic (https://t.me/c/4133995291/638).
+          TELEGRAM_CHAT_ID: '-1004133995291'
+          TELEGRAM_TOPIC_ID: '638'
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: npm run store-reviews
