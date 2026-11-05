@@ -3,8 +3,6 @@ import type { ActiveUsersDay, Day, InstallsDay } from './play.ts';
 
 export type KpiReport = {
     app: string;
-    /** Name of the version from which the active users are counted apart, e.g. `1.1.1`. */
-    minVersion: string;
     activeUsers?: ActiveUsersDay;
     installs?: InstallsDay;
     errors: string[];
@@ -16,15 +14,17 @@ const dayFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'num
 const formatDay = (day: Day) => dayFormat.format(Date.parse(`${day}T00:00:00Z`));
 
 /** The Telegram message (HTML) of a report: what could be read, then what failed. */
-export function formatKpis({ app, minVersion, activeUsers, installs, errors }: KpiReport): string {
+export function formatKpis({ app, activeUsers, installs, errors }: KpiReport): string {
     const sections = [`📊 <b>${escapeHtml(app)}</b> · KPIs`];
     if (activeUsers) {
-        const { day, total, sinceVersion } = activeUsers;
-        const share = total > 0 ? ` (${percentFormat.format(sinceVersion / total)})` : '';
+        const { day, total, sinceVersions } = activeUsers;
+        const share = (users: number) => (total > 0 ? ` (${percentFormat.format(users / total)})` : '');
         // Google rounds the vitals user counts (to the thousand for a few thousand users).
         sections.push(
-            `👥 <b>Utilisateurs actifs</b> · ${formatDay(day)} : ≈ ${numberFormat.format(total)}\n` +
-                `↳ dont v${escapeHtml(minVersion)}+ : ≈ ${numberFormat.format(sinceVersion)}${share}`,
+            [
+                `👥 <b>Utilisateurs actifs</b> · ${formatDay(day)} : ≈ ${numberFormat.format(total)}`,
+                ...sinceVersions.map(({ name, users }) => `↳ dont v${escapeHtml(name)}+ : ≈ ${numberFormat.format(users)}${share(users)}`),
+            ].join('\n'),
         );
     }
     if (installs) sections.push(`📥 <b>Téléchargements</b> · ${formatDay(installs.day)} : ${numberFormat.format(installs.userInstalls)}`);

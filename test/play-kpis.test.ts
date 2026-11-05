@@ -22,11 +22,18 @@ describe('summarizeActiveUsers', () => {
     it('keeps the total of its own query and the versions from the threshold, on the last day', () => {
         const total = [row(26, 1000), row(25, 900)];
         const byVersion = [row(26, 700, '68'), row(26, 300, '122'), row(26, 100, '123'), row(25, 900, '122')];
-        expect(summarizeActiveUsers(total, byVersion, 122)).toEqual({ day: '2026-10-26', total: 1000, sinceVersion: 400 });
+        expect(summarizeActiveUsers(total, byVersion, [{ name: '1.1.1', code: 122 }, { name: '1.2.0', code: 123 }])).toEqual({
+            day: '2026-10-26',
+            total: 1000,
+            sinceVersions: [
+                { name: '1.1.1', code: 122, users: 400 },
+                { name: '1.2.0', code: 123, users: 100 },
+            ],
+        });
     });
 
     it('is undefined without data', () => {
-        expect(summarizeActiveUsers([], [], 122)).toBeUndefined();
+        expect(summarizeActiveUsers([], [], [])).toBeUndefined();
     });
 });
 
@@ -65,7 +72,11 @@ describe('PlayKpis', () => {
             bodies.push(body);
             return Response.json({ rows: body.dimensions.length ? [row(26, 5, '122'), row(26, 4, '68')] : [row(26, 8)] });
         }) as unknown as typeof fetch;
-        expect(await new PlayKpis('T', 'com.app', fetchImpl).activeUsers(122)).toEqual({ day: '2026-10-26', total: 8, sinceVersion: 5 });
+        expect(await new PlayKpis('T', 'com.app', fetchImpl).activeUsers([{ name: '1.1.1', code: 122 }])).toEqual({
+            day: '2026-10-26',
+            total: 8,
+            sinceVersions: [{ name: '1.1.1', code: 122, users: 5 }],
+        });
         expect(bodies[0]).toMatchObject({ timelineSpec: { aggregationPeriod: 'DAILY', startTime: date(26), endTime: date(27) }, metrics: ['distinctUsers'] });
     });
 
@@ -82,7 +93,7 @@ describe('PlayKpis', () => {
 
     it('throws on an API error', async () => {
         const fetchImpl = (async () => new Response('denied', { status: 403 })) as unknown as typeof fetch;
-        await expect(new PlayKpis('T', 'com.app', fetchImpl).activeUsers(122)).rejects.toThrow('HTTP 403: denied');
+        await expect(new PlayKpis('T', 'com.app', fetchImpl).activeUsers([])).rejects.toThrow('HTTP 403: denied');
     });
 
     it('keeps the message of a Google error, unescaped', async () => {
@@ -109,8 +120,14 @@ describe('formatKpis', () => {
     it('reports the active users with the share on the new versions, and the installs', () => {
         const message = formatKpis({
             app: 'Muslim Reminder',
-            minVersion: '1.1.1',
-            activeUsers: { day: '2026-10-31', total: 4000, sinceVersion: 2000 },
+            activeUsers: {
+                day: '2026-10-31',
+                total: 4000,
+                sinceVersions: [
+                    { name: '1.1.1', code: 122, users: 2000 },
+                    { name: '1.2.0', code: 125, users: 1000 },
+                ],
+            },
             installs: { day: '2026-10-29', userInstalls: 1052 },
             errors: [],
         });
@@ -120,6 +137,7 @@ describe('formatKpis', () => {
                 '',
                 '👥 <b>Utilisateurs actifs</b> · sam. 31 oct. : ≈ 4 000',
                 '↳ dont v1.1.1+ : ≈ 2 000 (50 %)',
+                '↳ dont v1.2.0+ : ≈ 1 000 (25 %)',
                 '',
                 '📥 <b>Téléchargements</b> · jeu. 29 oct. : 1 052',
             ].join('\n'),
@@ -129,8 +147,7 @@ describe('formatKpis', () => {
     it('reports what could be read, then the errors', () => {
         const message = formatKpis({
             app: 'A',
-            minVersion: '1.1.1',
-            activeUsers: { day: '2026-10-31', total: 0, sinceVersion: 0 },
+            activeUsers: { day: '2026-10-31', total: 0, sinceVersions: [{ name: '1.1.1', code: 122, users: 0 }] },
             errors: ['Téléchargements : HTTP 403 <denied>'],
         });
         expect(plain(message)).toContain('↳ dont v1.1.1+ : ≈ 0\n');

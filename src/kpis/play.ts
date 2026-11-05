@@ -26,12 +26,15 @@ const toApiDate = (day: Day): ApiDate => {
 };
 export const addDays = (day: Day, days: number): Day => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
+/** A version from which the active users are counted apart: its name in the message, its version code. */
+export type VersionThreshold = { name: string; code: number };
+
 export type ActiveUsersDay = {
     day: Day;
     /** Distinct users who used the app that day (only those sharing usage & diagnostics with Google, rounded by Google). */
     total: number;
-    /** The same, on a version code >= the threshold. */
-    sinceVersion: number;
+    /** The same, on a version code >= each threshold, in the order of the thresholds. */
+    sinceVersions: (VersionThreshold & { users: number })[];
 };
 
 const distinctUsers = (row: MetricRow) => Number(row.metrics.find((m) => m.metric === 'distinctUsers')?.decimalValue?.value ?? 0);
@@ -44,14 +47,18 @@ const versionCode = (row: MetricRow) => {
  * The active users of the last day of the two vitals queries (all users, and by version code).
  * The total comes from its own query: a user who updated during the day counts in two versions.
  */
-export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: MetricRow[], minVersionCode: number): ActiveUsersDay | undefined {
+export function summarizeActiveUsers(totalRows: MetricRow[], versionRows: MetricRow[], thresholds: VersionThreshold[]): ActiveUsersDay | undefined {
     const day = totalRows
         .map((row) => toDay(row.startTime))
         .sort()
         .at(-1);
     if (!day) return undefined;
     const usersOf = (rows: MetricRow[]) => rows.filter((row) => toDay(row.startTime) === day).reduce((sum, row) => sum + distinctUsers(row), 0);
-    return { day, total: usersOf(totalRows), sinceVersion: usersOf(versionRows.filter((row) => versionCode(row) >= minVersionCode)) };
+    return {
+        day,
+        total: usersOf(totalRows),
+        sinceVersions: thresholds.map((threshold) => ({ ...threshold, users: usersOf(versionRows.filter((row) => versionCode(row) >= threshold.code)) })),
+    };
 }
 
 export type InstallsDay = { day: Day; userInstalls: number };
@@ -111,7 +118,7 @@ export class PlayKpis {
     }
 
     /** The active users of the last day the vitals have data for. */
-    async activeUsers(minVersionCode: number): Promise<ActiveUsersDay | undefined> {
+    async activeUsers(thresholds: VersionThreshold[]): Promise<ActiveUsersDay | undefined> {
         const metricSet = `${REPORTING_API}/apps/${this.packageName}/crashRateMetricSet`;
         const freshness = (await (await this.call(metricSet)).json()) as {
             freshnessInfo?: { freshnesses?: { aggregationPeriod: string; latestEndTime: ApiDate }[] };
@@ -142,7 +149,7 @@ export class PlayKpis {
             return rows;
         };
         const [total, byVersion] = await Promise.all([query([]), query(['versionCode'])]);
-        return summarizeActiveUsers(total, byVersion, minVersionCode);
+        return summarizeActiveUsers(total, byVersion, thresholds);
     }
 
     /** The new installs of the last day of the current or previous month's report. */

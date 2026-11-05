@@ -175,13 +175,15 @@ the Muslim Reminder Telegram group:
 ```
 👥 Utilisateurs actifs · sam. 31 oct. : ≈ 4 000
 ↳ dont v1.1.1+ : ≈ 2 000 (50 %)
+↳ dont v1.2.0+ : ≈ 1 000 (25 %)
 
 📥 Téléchargements · jeu. 29 oct. : 52
 ```
 
 - **active users**: distinct users of the day from the Android vitals (Play Developer Reporting API, only
   users who share usage & diagnostics with Google, so below the real count, and rounded by Google to the
-  thousand), in total and on the versions from `MIN_VERSION_CODE` (122, shown as `MIN_VERSION_NAME`, 1.1.1);
+  thousand), in total and on the versions from each of `VERSION_THRESHOLDS` (`<name>=<version code>`, comma-separated:
+  `1.1.1=122,1.2.0=125`);
 - **downloads**: the new installs of the day (*Daily User Installs*), from the monthly installs reports Play
   Console writes to its Cloud Storage bucket (`pubsite_prod_<developer id>`).
 
@@ -191,7 +193,9 @@ job logs no figure.
 
 Access: the `play-kpis@muslim-reminder-kpis.iam.gserviceaccount.com` service account (Google Cloud project
 `muslim-reminder-kpis`, Play Developer Reporting API enabled), invited in Play Console → Users and
-permissions with **View app information and download bulk reports (read only)**. Its JSON key is the
+permissions with **View app information and download bulk reports (read only)** granted at the **account**
+level (Account permissions tab): granted on the app only, the vitals work but the reports bucket answers 403.
+Its JSON key is the
 `GOOGLE_PLAY_SA_JSON` repository secret. Locally:
 
 ```sh
