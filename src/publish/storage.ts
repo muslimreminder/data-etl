@@ -115,6 +115,18 @@ export class R2Storage implements ContentStorage {
         }
     }
 
+    /** Bytes of an object and when it was uploaded. */
+    async getBytesWithDate(path: string): Promise<{ bytes: Uint8Array; modifiedAt: Date } | undefined> {
+        try {
+            const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: path }));
+            const bytes = await object.Body?.transformToByteArray();
+            return bytes === undefined ? undefined : { bytes, modifiedAt: object.LastModified ?? new Date() };
+        } catch (error) {
+            if (error instanceof NoSuchKey) return undefined;
+            throw error;
+        }
+    }
+
     /** ETag of an object (the MD5 of its bytes when uploaded in one part), undefined when missing. */
     async etag(path: string): Promise<string | undefined> {
         try {

@@ -124,6 +124,26 @@ npm run mirror-audio -- --target r2 --recitations al-husary
 npm run mirror-audio -- --target r2 --dry-run                # download and count, upload nothing
 ```
 
+### Quran mushafs
+
+A mushaf the apps download instead of the one they ship (`content = quran-mushafs`, catalog in
+[`src/sources/qul/mushafs.ts`](src/sources/qul/mushafs.ts)), for now the KFGQPC V4 tajweed one. It takes three
+QUL resources: the word-by-word glyph script (`quran-script/47`, `qpc-v4.json`) and the layout
+(`mushaf-layout/19`, `qpc-v4-tajweed-15-lines.db`, a SQLite database), both downloaded by "Sync QUL" to
+`qul/mushafs/<id>/`, and the page fonts (`font/240`), which QUL serves publicly: the ETL downloads the 604
+TTFs itself on every run (167 MB).
+
+- `quran/mushafs/<id>` holds the lines of every page (`surah-name`, `basmala`, or words
+  `[surah, ayah, word, glyphs]`, word 0 being the verse-end marker) and the font of each page.
+- The fonts are binary assets at `v1/quran/mushafs/<id>/fonts/<ppp>.<sha8>.ttf`. The layout file lists them,
+  with their hash; the manifest does not. They are uploaded before the layout file.
+- The fonts are COLR v0 color fonts. Their black layers are switched to the text color (palette index
+  `0xFFFF`), so an app can still color a word to highlight it; the tajweed colors are kept.
+- The ETL fails when a page font cannot draw a word of its page.
+
+QUL's V4 print (1441H) breaks its lines differently from the V1 print the app ships, and about 70 pages end
+on different verses: a mushaf brings its own pagination.
+
 In production: GitHub Actions → **Mirror recitation audio** (manual). A run takes hours and is
 resumable: it lists what the bucket already holds and downloads only the rest, so an interrupted run is
 finished by starting it again. Only a recitation whose source changed ever needs mirroring again.
@@ -160,6 +180,7 @@ SUNNAH_API_KEY=... npm run etl -- --collections bukhari --dump ~/Downloads/Hadit
 npm run etl -- --target r2 --collections bukhari --dry-run        # compare with R2, upload nothing
 npm run etl -- --content quran-translations --qul ~/qul   # folder of <id>.json → ./out
 npm run etl -- --content quran-recitations --qul ~/Downloads     # timings only; audio: npm run mirror-audio
+npm run etl -- --content quran-mushafs --qul ~/qul        # script.json + layout.sqlite, fonts from QUL
 npm run etl -- --help
 ```
 

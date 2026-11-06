@@ -115,7 +115,7 @@ describe('QulSite.download', () => {
         const download = await site.download('tafsir', 22, 'json');
 
         expect(download.name).toBe('ar-tafsir-ibn-kathir.json');
-        expect(download.text).toBe('{}');
+        expect(new TextDecoder().decode(download.bytes)).toBe('{}');
         expect(calls.map((call) => call.cookie)).toEqual([
             '_quran_com-community_session=abc123',
             '_quran_com-community_session=abc123',

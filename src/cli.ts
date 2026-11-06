@@ -5,6 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import {
     contentKeys,
     HadithCollectionsFileSchema,
+    QuranMushafsFileSchema,
     QuranRecitationsFileSchema,
     QuranSurahInfosFileSchema,
     QuranTafsirsFileSchema,
@@ -22,17 +23,20 @@ import { buildSurahInfoFiles } from './sources/qul/surah-infos.ts';
 import { buildRecitationFiles } from './sources/qul/recitations.ts';
 import { buildTafsirFiles } from './sources/qul/tafsirs.ts';
 import { buildWordTranslationFiles } from './sources/qul/words.ts';
+import { buildMushafFiles, type ReadQulBytes } from './sources/qul/mushafs.ts';
+import type { OutputAsset } from './output.ts';
 
 const HELP = `Usage: npm run etl -- [options]
 
   --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations,
-                        quran-surah-infos, quran-tafsirs, quran-recitations (default: hadith)
+                        quran-surah-infos, quran-tafsirs, quran-recitations, quran-mushafs (default: hadith)
   --target local|r2     Where to publish (default: local)
   --out <dir>           Folder for --target local (default: ./out)
   --collections <ids>   Comma-separated sunnah.com collections to rebuild (default: all)
   --dump <file|none>    sunnah.com snapshot (HadithTable.sql[.gz]). Default: r2://muslimreminder-sources
                         with --target r2, none with --target local
-  --qul <dir|r2>        Downloaded QUL files (translations, surah infos, tafsirs, recitations), named <id>.json (see npm run upload-qul).
+  --qul <dir|r2>        Downloaded QUL files (translations, surah infos, tafsirs, recitations), named <id>.json (see npm run upload-qul);
+                        mushafs read script.json and layout.sqlite. quran-mushafs also downloads the page fonts from QUL.
                         Default: r2://muslimreminder-sources with --target r2
   --dry-run             Build and compare, but write nothing
   -h, --help
@@ -69,7 +73,7 @@ const requireEnv = (name: string) => {
     return value;
 };
 
-const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos', 'quran-tafsirs', 'quran-recitations'] as const;
+const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos', 'quran-tafsirs', 'quran-recitations', 'quran-mushafs'] as const;
 const contents = values.content.split(',').map((content) => content.trim()).filter(Boolean);
 const unknownContent = contents.filter((content) => !(CONTENTS as readonly string[]).includes(content));
 if (contents.length === 0 || unknownContent.length > 0) {
@@ -136,6 +140,24 @@ function qulSource(): ReadQulSource {
     };
 }
 
+/** Same as `qulSource`, as bytes: a mushaf layout is a SQLite database. */
+function qulBytesSource(): ReadQulBytes {
+    const source = values.qul ?? (values.target === 'r2' ? 'r2' : undefined);
+    if (source === undefined) {
+        console.error(`--qul <dir> is required to build QUL content locally\n\n${HELP}`);
+        process.exit(1);
+    }
+    if (source === 'r2') {
+        const bucket = r2(sourcesBucket());
+        return (key) => bucket.getBytesWithDate(key);
+    }
+    return async (key) => {
+        const file = join(source, basename(key));
+        const bytes = await readFile(file).catch(() => undefined);
+        return bytes === undefined ? undefined : { bytes: new Uint8Array(bytes), modifiedAt: (await stat(file)).mtime };
+    };
+}
+
 const log = (message: string) => console.log(message);
 const warnings: string[] = [];
 const warn = (message: string) => {
@@ -155,6 +177,7 @@ log(
 
 const previous = await readManifest(storage);
 const files: OutputFile[] = [];
+const assets: OutputAsset[] = [];
 let sunnahRequests: number | undefined;
 
 if (contents.includes('hadith')) {
@@ -229,10 +252,21 @@ if (contents.includes('quran-recitations')) {
     );
 }
 
-const result = await publish(storage, files, { previous, now, dryRun, log });
+if (contents.includes('quran-mushafs')) {
+    const published = await readPublished(storage, previous, contentKeys.quran.mushafs(), QuranMushafsFileSchema);
+    const built = await buildMushafFiles(qulBytesSource(), {
+        ...(published && { previous: published.mushafs }),
+        log,
+        warn,
+    });
+    files.push(...built.files);
+    assets.push(...built.assets);
+}
+
+const result = await publish(storage, files, { previous, now, dryRun, log, assets });
 const seconds = Math.round((Date.now() - started) / 1000);
 log(
-    `\n${files.length} files built, ${result.uploaded.length} ${dryRun ? 'to upload' : 'uploaded'}, ${result.unchanged} unchanged, ` +
+    `\n${files.length} files and ${assets.length} assets built, ${result.uploaded.length} ${dryRun ? 'to upload' : 'uploaded'}, ${result.unchanged} unchanged, ` +
         `manifest ${result.manifestUpdated ? (dryRun ? 'would be updated' : 'updated') : 'unchanged'}. ` +
         `${sunnahRequests === undefined ? '' : `${sunnahRequests} sunnah.com requests, `}${warnings.length} warnings, ${seconds}s.`,
 );

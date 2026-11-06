@@ -12,7 +12,7 @@ class MemoryStorage implements ContentStorage {
         return this.objects.get(path)?.body;
     }
     async exists(path: string) {
-        return this.objects.has(path);
+        return this.objects.has(path) || this.bytes.has(path);
     }
     async put(path: string, body: string, options: PutOptions) {
         this.objects.set(path, { body, options });
@@ -74,5 +74,19 @@ describe('publish', () => {
         expect(result.uploaded).toHaveLength(1);
         expect(result.manifestUpdated).toBe(true);
         expect(storage.puts).toEqual([]);
+    });
+
+    it('uploads the assets before the files that refer to them, once', async () => {
+        const storage = new MemoryStorage();
+        const asset = { path: 'quran/mushafs/m/fonts/001.0123abcd.ttf', bytes: new Uint8Array([1, 2]), contentType: 'font/ttf' };
+        const files = [{ key: 'quran/mushafs/m', data: { font: asset.path } }];
+        const now = new Date('2026-09-24T12:00:00Z');
+        await publish(storage, files, { previous: undefined, now, dryRun: false, log, assets: [asset] });
+        expect(storage.puts[0]).toBe(`v1/${asset.path}`);
+        expect(storage.bytes.get(`v1/${asset.path}`)?.options).toEqual({ contentType: 'font/ttf', cacheControl: IMMUTABLE_CACHE });
+        expect(storage.puts.at(-1)).toBe('v1/manifest.json');
+
+        const again = await publish(storage, files, { previous: await readManifest(storage), now, dryRun: false, log, assets: [asset] });
+        expect(again).toMatchObject({ uploaded: [], unchanged: 2, manifestUpdated: false });
     });
 });

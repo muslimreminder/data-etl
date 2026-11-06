@@ -67,17 +67,17 @@ for (const resource of resources) {
         if (!resource.file.test(download.name)) {
             throw new Error(`QUL ${resource.type} ${resource.qulId} serves "${download.name}", which does not match ${resource.file}: wrong QUL id?`);
         }
-        resource.check(download.text);
+        resource.check(download.bytes);
         const md5 = createHash('md5').update(download.bytes).digest('hex');
         if ((await sources.etag(resource.key)) === md5) {
             console.log(`${resource.id}: unchanged`);
             continue;
         }
         if (!dryRun) {
-            await sources.putBytes(resource.key, download.bytes, { contentType: 'application/json', cacheControl: 'no-store' });
+            await sources.putBytes(resource.key, download.bytes, { contentType: resource.contentType ?? 'application/json', cacheControl: 'no-store' });
         }
         changed.push({ id: resource.id, content: resource.content });
-        console.log(`${resource.id}: ${download.name} → ${resource.key}${dryRun ? ' (dry run)' : ''}`);
+        console.log(`${resource.id}: ${download.name} (${download.bytes.length} bytes) → ${resource.key}${dryRun ? ' (dry run)' : ''}`);
     } catch (error) {
         errors.push(`${resource.id}: ${(error as Error).message}`);
         console.error(`❌ ${resource.id}: ${(error as Error).message}`);
