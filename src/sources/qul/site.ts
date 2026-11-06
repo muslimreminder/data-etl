@@ -5,6 +5,10 @@ import type { QulResourceType } from './resources.ts';
 export const QUL_URL = 'https://qul.tarteel.ai';
 const SESSION_COOKIE = '_quran_com-community_session';
 const USER_AGENT = 'muslimreminder-data-etl (+https://github.com/muslimreminder/data-etl)';
+/** QUL sometimes answers 502/503 for a moment: one resource must not fail the whole weekly sync. */
+const ATTEMPTS = 3;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A resource listed on `https://qul.tarteel.ai/resources/<type>`. */
 export type QulListedResource = { type: QulResourceType; id: number; name: string };
@@ -20,14 +24,16 @@ export class QulSite {
     private readonly cookie: string;
     private readonly fetch: typeof fetch;
     private readonly delayMs: number;
+    private readonly retryDelayMs: number;
     private last = 0;
 
     /** `session`: the value of the `_quran_com-community_session` cookie, or a whole `Cookie` header holding it. */
-    constructor(session: string, options: { fetch?: typeof fetch; delayMs?: number } = {}) {
+    constructor(session: string, options: { fetch?: typeof fetch; delayMs?: number; retryDelayMs?: number } = {}) {
         const value = session.trim();
         this.cookie = value.includes('=') ? value : `${SESSION_COOKIE}=${value}`;
         this.fetch = options.fetch ?? fetch;
         this.delayMs = options.delayMs ?? 1_000;
+        this.retryDelayMs = options.retryDelayMs ?? 10_000;
     }
 
     /** Every resource of a kind, as listed by QUL (public page, no cookie sent). */
@@ -70,15 +76,24 @@ export class QulSite {
         return response.text();
     }
 
-    /** One request at a time, `delayMs` apart: QUL is a community website, not a CDN. */
+    /**
+     * One request at a time, `delayMs` apart: QUL is a community website, not a CDN. A 429 or 5xx is
+     * tried again, `retryDelayMs` later, then twice as late.
+     */
     private async request(path: string, signedIn: boolean, redirect: 'follow' | 'manual') {
-        const wait = this.last + this.delayMs - Date.now();
-        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-        this.last = Date.now();
-        return this.fetch(new URL(path, QUL_URL), {
-            redirect,
-            headers: { 'user-agent': USER_AGENT, ...(signedIn && { cookie: this.cookie }) },
-        });
+        for (let attempt = 1; ; attempt++) {
+            const wait = this.last + this.delayMs - Date.now();
+            if (wait > 0) await sleep(wait);
+            this.last = Date.now();
+            const response = await this.fetch(new URL(path, QUL_URL), {
+                redirect,
+                headers: { 'user-agent': USER_AGENT, ...(signedIn && { cookie: this.cookie }) },
+            });
+            const retryable = response.status === 429 || response.status >= 500;
+            if (!retryable || attempt >= ATTEMPTS) return response;
+            await response.body?.cancel();
+            await sleep(this.retryDelayMs * attempt);
+        }
     }
 }
 
