@@ -123,6 +123,46 @@ describe('QulSite.download', () => {
         ]);
     });
 
+    it('tries a 5xx again before giving up', async () => {
+        const answers = [502, 503];
+        const calls: Call[] = [];
+        const site = new QulSite('abc', {
+            delayMs: 0,
+            retryDelayMs: 0,
+            fetch: fakeFetch(
+                {
+                    'https://qul.tarteel.ai/resources/tafsir/22': () => new Response(SIGNED_IN_PAGE),
+                    'https://qul.tarteel.ai/resources/tafsir/0a1b2c/download': () => {
+                        const status = answers.shift();
+                        return status
+                            ? new Response('Bad gateway', { status })
+                            : new Response(null, { status: 302, headers: { location: 'https://files.example.com/x.zip' } });
+                    },
+                    'https://files.example.com/x.zip': () => new Response(zip('a.json', '{}')),
+                },
+                calls,
+            ),
+        });
+
+        expect((await site.download('tafsir', 22, 'json')).text).toBe('{}');
+        expect(calls.filter((call) => call.url.endsWith('/download'))).toHaveLength(3);
+    });
+
+    it('stops after three 5xx', async () => {
+        const site = new QulSite('abc', {
+            delayMs: 0,
+            retryDelayMs: 0,
+            fetch: fakeFetch(
+                {
+                    'https://qul.tarteel.ai/resources/tafsir/22': () => new Response(SIGNED_IN_PAGE),
+                    'https://qul.tarteel.ai/resources/tafsir/0a1b2c/download': () => new Response('Bad gateway', { status: 502 }),
+                },
+                [],
+            ),
+        });
+        await expect(site.download('tafsir', 22, 'json')).rejects.toThrow('answered HTTP 502 instead of a redirect');
+    });
+
     it('explains an expired session', async () => {
         const site = new QulSite('expired', {
             delayMs: 0,
