@@ -8,7 +8,9 @@
 // Env for R2: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_SOURCES_BUCKET (default muslimreminder-sources).
 // Env for Telegram (optional, nothing is sent without them or in a dry run): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
 // TELEGRAM_TOPIC_ID (forum topic, default the General one).
-// In GitHub Actions, writes `contents` (what to publish), `recitations` and `new_resources` to $GITHUB_OUTPUT.
+// Also downloads the recitations streamed surah by surah from the public QUL audio API (no cookie).
+// In GitHub Actions, writes `contents` (what to publish), `recitations`, `surah_recitations` (audio to mirror)
+// and `new_resources` to $GITHUB_OUTPUT.
 import { createHash } from 'node:crypto';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
@@ -16,6 +18,8 @@ import { escapeHtml, joinWithinLimit, sendTelegram, telegramTargetFromEnv } from
 import { R2Storage } from '../src/publish/storage.ts';
 import { QUL_RESOURCE_TYPES, QUL_RESOURCES, type QulContent, type QulResourceType } from '../src/sources/qul/resources.ts';
 import { QUL_URL, QulSite, type QulListedResource } from '../src/sources/qul/site.ts';
+import { QUL_SURAH_RECITATIONS } from '../src/sources/qul/surah-recitations.ts';
+import { syncSurahRecitations } from '../src/sources/qul/surah-sync.ts';
 
 const KNOWN_KEY = 'qul/known-resources.json';
 type Known = Partial<Record<QulResourceType, number[]>>;
@@ -39,7 +43,8 @@ const requireEnv = (name: string) => {
 
 const dryRun = values['dry-run'];
 const only = values.only?.split(',').map((id) => id.trim()).filter(Boolean);
-const unknown = only?.filter((id) => !QUL_RESOURCES.some((resource) => resource.id === id)) ?? [];
+const unknown =
+    only?.filter((id) => !QUL_RESOURCES.some((resource) => resource.id === id) && !QUL_SURAH_RECITATIONS.some((recitation) => recitation.id === id)) ?? [];
 if (unknown.length > 0) {
     console.error(`Not in the catalogs: ${unknown.join(', ')}`);
     process.exit(1);
@@ -84,6 +89,23 @@ for (const resource of resources) {
     }
 }
 
+// Recitations streamed surah by surah: read from the public QUL audio API, no cookie needed.
+const surahRecitations = QUL_SURAH_RECITATIONS.filter((recitation) => !only || only.includes(recitation.id));
+if (surahRecitations.length > 0) {
+    const sync = await syncSurahRecitations({
+        api: new QulSite('', { delayMs: 300 }),
+        sources,
+        recitations: surahRecitations,
+        dryRun,
+        log: (message) => console.log(message),
+    });
+    changed.push(...sync.changed.map((id) => ({ id, content: 'quran-surah-recitations' as const })));
+    for (const error of sync.errors) {
+        errors.push(error);
+        console.error(`❌ ${error}`);
+    }
+}
+
 // Resources QUL added since the last run. The first run only records what exists.
 const added: QulListedResource[] = [];
 let firstRun = false;
@@ -111,13 +133,14 @@ if (!only) {
 
 const contents = [...new Set(changed.map((resource) => resource.content))];
 const recitations = changed.filter((resource) => resource.content === 'quran-recitations').map((resource) => resource.id);
+const surahRecitationsChanged = changed.filter((resource) => resource.content === 'quran-surah-recitations').map((resource) => resource.id);
 
 const report = [
     `### Sync QUL${dryRun ? ' (dry run)' : ''}`,
     '',
     changed.length
         ? `**${changed.length} changed** (${dryRun ? 'not uploaded' : 'uploaded'}): ${changed.map((resource) => `\`${resource.id}\``).join(', ')}`
-        : `No change in the ${resources.length} resources of the catalogs.`,
+        : `No change in the ${resources.length + surahRecitations.length} resources of the catalogs.`,
     ...(errors.length ? ['', `**${errors.length} errors**`, ...errors.map((error) => `- ${error}`)] : []),
     ...(firstRun ? ['', 'First run: the resources listed on QUL are recorded, the next runs report the new ones.'] : []),
     ...(added.length
@@ -168,7 +191,8 @@ if (telegram && !dryRun && (added.length > 0 || errors.length > 0)) {
 if (process.env.GITHUB_OUTPUT) {
     await appendFile(
         process.env.GITHUB_OUTPUT,
-        `contents=${contents.join(',')}\nrecitations=${recitations.join(',')}\nnew_resources=${added.length}\n`,
+        `contents=${contents.join(',')}\nrecitations=${recitations.join(',')}\nsurah_recitations=${surahRecitationsChanged.join(',')}\n` +
+            `new_resources=${added.length}\n`,
     );
 }
 if (errors.length) process.exit(1);

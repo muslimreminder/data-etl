@@ -16,6 +16,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Surah introductions | [QUL surah info](https://qul.tarteel.ai/resources/surah-info) `surah-info-<lang>.json` files, downloaded by hand | en, ur, ml, id, it |
 | Tafsirs | [QUL tafsir](https://qul.tarteel.ai/resources/tafsir) JSON files, downloaded by hand | ar ×2, en ×2, fr, ru ×3, sq |
 | Quran recitations | [QUL recitation](https://qul.tarteel.ai/resources/recitation) ayah-by-ayah files, downloaded by hand; the audio itself from the CDNs those files point to | ar ×7 |
+| Quran surah recitations | [QUL audio API](https://qul.tarteel.ai/api/v1/audio/surah_recitations) (public, surah by surah); the audio from the CDNs it points to | ar ×94 |
 
 ### sunnah.com data snapshot (hybrid)
 
@@ -47,9 +48,10 @@ for every resource of the QUL catalogs ([`src/sources/qul/resources.ts`](src/sou
    (the same download as by hand), unzips it, checks its name and content;
 2. uploads to `muslimreminder-sources` only the files whose bytes changed (MD5 against the R2 ETag),
    so an unchanged source never gets a new `retrievedAt`;
-3. runs the ETL for the changed kinds of content, then starts **Mirror recitation audio** for the
-   changed recitations;
-4. compares the QUL listings with `qul/known-resources.json` (sources bucket) and posts the resources
+3. reads the surah recitations from the public QUL audio API (see [Quran surah recitations](#quran-surah-recitations));
+4. runs the ETL for the changed kinds of content, then starts **Mirror recitation audio** for the
+   changed recitations (verse by verse, and surah by surah);
+5. compares the QUL listings with `qul/known-resources.json` (sources bucket) and posts the resources
    QUL added on the Muslim Reminder Telegram group (QUL topic; failures are posted there too). Adding one stays a choice: append it to its catalog (QUL id = the
    number in its page URL), merge, and the next sync downloads and publishes it.
 
@@ -128,6 +130,30 @@ In production: GitHub Actions → **Mirror recitation audio** (manual). A run ta
 resumable: it lists what the bucket already holds and downloads only the rest, so an interrupted run is
 finished by starting it again. Only a recitation whose source changed ever needs mirroring again.
 
+### Quran surah recitations
+
+The audio player of the apps streams whole surahs (gapless), unlike the verse-by-verse recitations
+above. They come from the **public QUL audio API**, no cookie needed (catalog in
+[`src/sources/qul/surah-recitations.ts`](src/sources/qul/surah-recitations.ts), `apiId` = id in
+`/api/v1/audio/surah_recitations`): every complete Hafs recitation, minus the ones mixed with a spoken
+translation, the children's repeat editions, the other riwayat (the mushaf and timings of the apps are
+Hafs) and duplicates. Taraweeh recordings of Makkah and Madinah are in, marked `occasion: taraweeh`.
+
+**Sync QUL** stores the API answers in `qul/surah-recitations/<id>.json` (sources bucket): the detail of
+each recitation (audio files, lengths, sizes) every run, and its segments (`/surah_segments`, one request
+per surah, ~35 s per recitation) when it is new or when they are 28 days old, 8 recitations per run at
+most — when they were last read is in `qul/surah-recitations/state.json`. The ETL
+(`content = quran-surah-recitations`) publishes `quran/surah-recitations` and one file per recitation:
+each surah's length and size and, when QUL times it, where each verse and word sits in the surah's file
+(`{ from, to, words }`, milliseconds from the start of the file).
+
+The audio is mirrored like the verses, at `v1/quran/surah-audio/<id>/<sss>.mp3` (`quranSurahAudioPath`),
+as served by the sources (up to ~300 MB per file, 1 to 5 GB per recitation, ~170 GB in all):
+
+```sh
+npm run mirror-audio -- --target r2 --kind surah --recitations al-husary,alafasy
+```
+
 ## Output
 
 ```
@@ -146,6 +172,9 @@ v1/quran/tafsirs/<id>.<hash>.json                    immutable
 v1/quran/recitations.<hash>.json                     immutable
 v1/quran/recitations/<id>.<hash>.json                immutable
 v1/quran/audio/<id>/<sss><vvv>.mp3                   immutable, not in the manifest
+v1/quran/surah-recitations.<hash>.json               immutable
+v1/quran/surah-recitations/<id>.<hash>.json          immutable
+v1/quran/surah-audio/<id>/<sss>.mp3                  immutable, not in the manifest
 ```
 
 Changed files are uploaded first, the manifest last. Unchanged content uploads nothing.

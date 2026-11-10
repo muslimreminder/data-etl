@@ -7,6 +7,7 @@ import {
     HadithCollectionsFileSchema,
     QuranRecitationsFileSchema,
     QuranSurahInfosFileSchema,
+    QuranSurahRecitationsFileSchema,
     QuranTafsirsFileSchema,
     QuranTranslationsFileSchema,
     QuranWordTranslationsFileSchema,
@@ -20,13 +21,15 @@ import { buildHadithFiles } from './sources/sunnah/index.ts';
 import { buildTranslationFiles, type ReadQulSource } from './sources/qul/index.ts';
 import { buildSurahInfoFiles } from './sources/qul/surah-infos.ts';
 import { buildRecitationFiles } from './sources/qul/recitations.ts';
+import { buildSurahRecitationFiles } from './sources/qul/surah-recitations.ts';
 import { buildTafsirFiles } from './sources/qul/tafsirs.ts';
 import { buildWordTranslationFiles } from './sources/qul/words.ts';
 
 const HELP = `Usage: npm run etl -- [options]
 
   --content <list>      Comma-separated: hadith, quran-translations, quran-word-translations,
-                        quran-surah-infos, quran-tafsirs, quran-recitations (default: hadith)
+                        quran-surah-infos, quran-tafsirs, quran-recitations,
+                        quran-surah-recitations (default: hadith)
   --target local|r2     Where to publish (default: local)
   --out <dir>           Folder for --target local (default: ./out)
   --collections <ids>   Comma-separated sunnah.com collections to rebuild (default: all)
@@ -69,7 +72,7 @@ const requireEnv = (name: string) => {
     return value;
 };
 
-const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos', 'quran-tafsirs', 'quran-recitations'] as const;
+const CONTENTS = ['hadith', 'quran-translations', 'quran-word-translations', 'quran-surah-infos', 'quran-tafsirs', 'quran-recitations', 'quran-surah-recitations'] as const;
 const contents = values.content.split(',').map((content) => content.trim()).filter(Boolean);
 const unknownContent = contents.filter((content) => !(CONTENTS as readonly string[]).includes(content));
 if (contents.length === 0 || unknownContent.length > 0) {
@@ -128,10 +131,15 @@ function qulSource(): ReadQulSource {
         const bucket = r2(sourcesBucket());
         return (key) => bucket.getWithDate(key);
     }
-    // A local folder holds every kind side by side, as `<id>.json`: ids never collide between kinds.
+    // A local folder holds the files side by side as `<id>.json`, or under their key when two kinds share an id.
     return async (key) => {
-        const file = join(source, basename(key));
-        const text = await readFile(file, 'utf8').catch(() => undefined);
+        // `<dir>/<key>` first (`qul/surah-recitations/al-husary.json`), then `<dir>/<id>.json`.
+        let file = join(source, key);
+        let text = await readFile(file, 'utf8').catch(() => undefined);
+        if (text === undefined) {
+            file = join(source, basename(key));
+            text = await readFile(file, 'utf8').catch(() => undefined);
+        }
         return text === undefined ? undefined : { text, modifiedAt: (await stat(file)).mtime };
     };
 }
@@ -222,6 +230,17 @@ if (contents.includes('quran-recitations')) {
     const published = await readPublished(storage, previous, contentKeys.quran.recitations(), QuranRecitationsFileSchema);
     files.push(
         ...(await buildRecitationFiles(qulSource(), {
+            ...(published && { previous: published.recitations }),
+            log,
+            warn,
+        })),
+    );
+}
+
+if (contents.includes('quran-surah-recitations')) {
+    const published = await readPublished(storage, previous, contentKeys.quran.surahRecitations(), QuranSurahRecitationsFileSchema);
+    files.push(
+        ...(await buildSurahRecitationFiles(qulSource(), {
             ...(published && { previous: published.recitations }),
             log,
             warn,

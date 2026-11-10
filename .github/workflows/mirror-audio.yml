@@ -1,18 +1,24 @@
 name: Mirror recitation audio
 
-# Copies the verse audio of a recitation to the content bucket. A recitation is 6,236 files (~400 MB)
-# and takes hours, so it is manual and resumable: run it again and it picks up where it stopped.
+# Copies the audio of recitations to the content bucket: verse by verse (6,236 files, ~400 MB each) or
+# surah by surah (114 files, 1 to 5 GB each). It takes hours, so it is manual (or started by "Sync QUL")
+# and resumable: run it again and it picks up where it stopped.
 on:
   workflow_dispatch:
     inputs:
+      kind:
+        description: 'Recitations played verse by verse, or streamed surah by surah'
+        type: choice
+        options: [verse, surah]
+        default: verse
       recitations:
         description: 'Recitations to mirror, comma-separated (empty = all of the catalog)'
         required: false
         default: ''
       concurrency:
-        description: 'Verses downloaded at the same time'
+        description: 'Files downloaded at the same time (empty = 8 verses or 4 surahs)'
         required: false
-        default: '8'
+        default: ''
       dry_run:
         description: 'Download and count, upload nothing'
         type: boolean
@@ -45,10 +51,11 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           RECITATIONS: ${{ inputs.recitations }}
-          CONCURRENCY: ${{ inputs.concurrency || '8' }}
+          KIND: ${{ inputs.kind || 'verse' }}
+          CONCURRENCY: ${{ inputs.concurrency }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          npm run mirror-audio -- --target r2 --concurrency "$CONCURRENCY" \
+          npm run mirror-audio -- --target r2 --kind "$KIND" ${CONCURRENCY:+--concurrency "$CONCURRENCY"} \
             ${RECITATIONS:+--recitations "$RECITATIONS"} $DRY_RUN | tee mirror.log
       - name: Summary
         if: always()
