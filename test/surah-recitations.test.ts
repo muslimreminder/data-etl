@@ -103,6 +103,17 @@ describe('QUL surah recitations', () => {
         expect(warnings).toEqual(['al-husary: surah 1: 1 verse(s) out of order, played without following them']);
     });
 
+    it('reads the word segments QUL sends as a string, with metadata, cut short or untimed', () => {
+        const source = raw();
+        const fatihah = source.segments!['1']!.segments as Record<string, unknown>;
+        fatihah['1:2'] = { time_from: 10_000, time_to: 19_000, segments: '[[1, 10200, 10900], [2, 0, 0], [3, 11000, 11500]]' };
+        fatihah['1:3'] = { time_from: 20_000, time_to: 29_000, segments: [[1, 20_200, 20_900, { waqaf: true }], [2, 21_000]] };
+        const parsed = parseQulSurahRecitation(JSON.stringify(source));
+        const file = toSurahRecitationFile(husary, parsed, { retrievedAt, warn: () => {} });
+        expect(file.surahs[0]!.verses![1]!.words).toEqual([[1, 10_200, 10_900], [3, 11_000, 11_500]]);
+        expect(file.surahs[0]!.verses![2]!.words).toEqual([[1, 20_200, 20_900]]);
+    });
+
     it('lists the audio files by surah, ignoring the keys that are not surahs', () => {
         const source = raw();
         source.recitation.audio_files[''] = { audio_url: 'https://audio.example.com/extra.mp3', duration: undefined, file_size: undefined };
