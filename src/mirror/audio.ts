@@ -1,4 +1,4 @@
-import { CONTENT_PATH_PREFIX, quranVerseAudioPath, QURAN_VERSE_COUNTS } from '@muslimreminder/schema/content';
+import { CONTENT_PATH_PREFIX, quranSurahAudioPath, quranVerseAudioPath, QURAN_VERSE_COUNTS } from '@muslimreminder/schema/content';
 import { IMMUTABLE_CACHE } from '../publish/publish.ts';
 import type { ContentStorage } from '../publish/storage.ts';
 import type { QulRecitation } from '../sources/qul/recitations.ts';
@@ -21,22 +21,22 @@ export const everyVerse = (): { surah: number; ayah: number; key: string }[] =>
     );
 
 export type MirrorResult = {
-    /** Verses copied during this run. */
+    /** Files copied during this run. */
     uploaded: number;
-    /** Verses already in the bucket: a run that is resumed skips them without touching the network. */
+    /** Files already in the bucket: a run that is resumed skips them without touching the network. */
     skipped: number;
-    /** Verses the source would not give, by `surah:verse`. */
+    /** Files the source would not give, by `surah:verse` or surah number. */
     failed: string[];
     bytes: number;
 };
 
-export type MirrorOptions = {
-    /** Where the source hosts each verse, by `surah:verse` (see `qulRecitationAudioUrls`). */
-    urls: Map<string, string>;
+export type MirrorOptions<Key> = {
+    /** Where the source hosts each file: by `surah:verse` for verses (see `qulRecitationAudioUrls`), by surah for surahs. */
+    urls: Map<Key, string>;
     storage: ContentStorage;
-    /** Verses fetched at the same time. The sources are public CDNs: stay civil. */
+    /** Files fetched at the same time. The sources are public CDNs: stay civil. */
     concurrency?: number;
-    /** Attempts per verse, with a growing pause between them. */
+    /** Attempts per file, with a growing pause between them. */
     attempts?: number;
     dryRun?: boolean;
     fetchBytes?: (url: string) => Promise<Uint8Array>;
@@ -54,20 +54,15 @@ const defaultFetchBytes = async (url: string): Promise<Uint8Array> => {
     return new Uint8Array(await response.arrayBuffer());
 };
 
+/** A file to copy: `name` identifies it in the logs and in `failed`, `path` is where it goes under the content root. */
+type MirrorItem = { name: string; path: string; url: string | undefined };
+
 /**
- * Copies a recitation to the content bucket, one file per verse at `quran/audio/<id>/<sss><vvv>.mp3`.
- *
- * A run is resumable: what the bucket already holds is listed once, then left alone — the same
- * recitation can be mirrored again after an interrupted run without downloading it all over again.
- * A verse the source refuses is reported and does not stop the others: the app falls back on the
- * verses it can play, and the next run picks the missing ones up.
+ * Copies files to the content bucket. A run is resumable: what the bucket already holds is listed once,
+ * then left alone. A file the source refuses is reported and does not stop the others.
  */
-export async function mirrorRecitationAudio(
-    recitation: Pick<QulRecitation, 'id'>,
-    options: MirrorOptions,
-): Promise<MirrorResult> {
+async function mirrorFiles(label: string, prefix: string, items: MirrorItem[], options: Omit<MirrorOptions<unknown>, 'urls'> & { unit: string }): Promise<MirrorResult> {
     const {
-        urls,
         storage,
         concurrency = 8,
         attempts = 3,
@@ -75,45 +70,45 @@ export async function mirrorRecitationAudio(
         fetchBytes = defaultFetchBytes,
         wait = sleep,
         log = () => {},
+        unit,
     } = options;
 
-    const prefix = objectKey(`quran/audio/${recitation.id}/`);
-    const published = await storage.list(prefix);
-    const verses = everyVerse().filter(({ surah, ayah }) => !published.has(objectKey(quranVerseAudioPath(recitation.id, surah, ayah))));
-    const result: MirrorResult = { uploaded: 0, skipped: 6236 - verses.length, failed: [], bytes: 0 };
-    log(`${recitation.id}: ${result.skipped} verses already mirrored, ${verses.length} to go`);
+    const published = await storage.list(objectKey(prefix));
+    const todo = items.filter((item) => !published.has(objectKey(item.path)));
+    const result: MirrorResult = { uploaded: 0, skipped: items.length - todo.length, failed: [], bytes: 0 };
+    log(`${label}: ${result.skipped} ${unit} already mirrored, ${todo.length} to go`);
+    const every = Math.max(1, Math.round(todo.length / 25));
 
     let next = 0;
     const worker = async () => {
-        while (next < verses.length) {
-            const verse = verses[next++]!;
-            const url = urls.get(verse.key);
-            if (!url) {
-                result.failed.push(verse.key);
+        while (next < todo.length) {
+            const item = todo[next++]!;
+            if (!item.url) {
+                result.failed.push(item.name);
                 continue;
             }
             for (let attempt = 1; attempt <= attempts; attempt++) {
                 try {
-                    const bytes = await fetchBytes(url);
+                    const bytes = await fetchBytes(item.url);
                     if (bytes.byteLength === 0) {
                         throw new Error('empty file');
                     }
                     if (!dryRun) {
-                        await storage.putBytes(objectKey(quranVerseAudioPath(recitation.id, verse.surah, verse.ayah)), bytes, {
+                        await storage.putBytes(objectKey(item.path), bytes, {
                             cacheControl: AUDIO_CACHE,
                             contentType: AUDIO_CONTENT_TYPE,
                         });
                     }
                     result.uploaded++;
                     result.bytes += bytes.byteLength;
-                    if (result.uploaded % 250 === 0) {
-                        log(`${recitation.id}: ${result.uploaded}/${verses.length} verses`);
+                    if (result.uploaded % every === 0) {
+                        log(`${label}: ${result.uploaded}/${todo.length} ${unit}`);
                     }
                     break;
                 } catch (error) {
                     if (attempt === attempts) {
-                        result.failed.push(verse.key);
-                        log(`${recitation.id}: ${verse.key} unavailable (${(error as Error).message})`);
+                        result.failed.push(item.name);
+                        log(`${label}: ${item.name} unavailable (${(error as Error).message})`);
                     } else {
                         await wait(500 * 2 ** (attempt - 1));
                     }
@@ -122,6 +117,33 @@ export async function mirrorRecitationAudio(
         }
     };
 
-    await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, verses.length)) }, worker));
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, todo.length)) }, worker));
     return result;
+}
+
+/**
+ * Copies a recitation to the content bucket, one file per verse at `quran/audio/<id>/<sss><vvv>.mp3`.
+ *
+ * Resumable: the same recitation can be mirrored again after an interrupted run without downloading
+ * it all over again. A missing verse does not stop the others: the app falls back on the verses it can
+ * play, and the next run picks the missing ones up.
+ */
+export function mirrorRecitationAudio(recitation: Pick<QulRecitation, 'id'>, options: MirrorOptions<string>): Promise<MirrorResult> {
+    const items = everyVerse().map(({ surah, ayah, key }) => ({
+        name: key,
+        path: quranVerseAudioPath(recitation.id, surah, ayah),
+        url: options.urls.get(key),
+    }));
+    return mirrorFiles(recitation.id, `quran/audio/${recitation.id}/`, items, { ...options, unit: 'verses' });
+}
+
+/**
+ * Copies a recitation streamed surah by surah, one file per surah at `quran/surah-audio/<id>/<sss>.mp3`.
+ * Only the surahs the source has are copied (`urls`, by surah number).
+ */
+export function mirrorSurahAudio(recitation: { id: string }, options: MirrorOptions<number>): Promise<MirrorResult> {
+    const items = [...options.urls.keys()]
+        .sort((a, b) => a - b)
+        .map((surah) => ({ name: String(surah), path: quranSurahAudioPath(recitation.id, surah), url: options.urls.get(surah) }));
+    return mirrorFiles(recitation.id, `quran/surah-audio/${recitation.id}/`, items, { ...options, unit: 'surahs' });
 }

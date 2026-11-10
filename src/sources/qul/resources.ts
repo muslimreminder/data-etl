@@ -6,7 +6,13 @@ import { parseQulTafsir, QUL_TAFSIRS, qulTafsirSourceKey } from './tafsirs.ts';
 import { parseQulWords, QUL_WORD_TRANSLATIONS, qulWordSourceKey } from './words.ts';
 
 /** `--content` of the ETL that publishes a kind of QUL resource. */
-export type QulContent = 'quran-translations' | 'quran-word-translations' | 'quran-surah-infos' | 'quran-tafsirs' | 'quran-recitations';
+export type QulContent =
+    | 'quran-translations'
+    | 'quran-word-translations'
+    | 'quran-surah-infos'
+    | 'quran-tafsirs'
+    | 'quran-recitations'
+    | 'quran-surah-recitations';
 
 /** Kind of resource in QUL URLs: `https://qul.tarteel.ai/resources/<type>/<id>`. */
 export type QulResourceType = 'translation' | 'tafsir' | 'surah-info' | 'recitation';

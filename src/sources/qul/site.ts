@@ -42,6 +42,11 @@ export class QulSite {
         return parseResourceList(html, type);
     }
 
+    /** An answer of the public QUL API (`/api/v1/...`, no cookie sent), parsed. */
+    async json(path: string): Promise<unknown> {
+        return JSON.parse(await this.text(path, false));
+    }
+
     /** Downloads the file `format` of a resource page (`Download <format>`), and unzips it. */
     async download(type: QulResourceType, id: number, format: string): Promise<QulDownload> {
         const page = `/resources/${type}/${id}`;

@@ -1,7 +1,7 @@
 name: Sync QUL
 
-# Every week: downloads the QUL resources of the catalogs (signed in with the QUL_TOKEN cookie), uploads the
-# changed ones to the sources bucket, publishes them, mirrors the audio of changed recitations, and posts the
+# Every week: downloads the QUL resources of the catalogs (signed in with the QUL_TOKEN cookie) and the surah
+# recitations (public QUL audio API), uploads the changed ones to the sources bucket, publishes them, mirrors the audio of changed recitations, and posts the
 # resources QUL added (and the failures) on the Muslim Reminder Telegram group.
 # The app picks the new catalogs up with its "Embed content" workflow.
 on:
@@ -30,7 +30,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -71,7 +71,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RECITATIONS: ${{ steps.sync.outputs.recitations }}
-        run: gh workflow run mirror-audio.yml --ref "$GITHUB_REF_NAME" -f recitations="$RECITATIONS"
+        run: gh workflow run mirror-audio.yml --ref "$GITHUB_REF_NAME" -f kind=verse -f recitations="$RECITATIONS"
+
+      # Queued behind the verse mirror if both run: the workflow never runs twice at once.
+      - name: Mirror the audio of changed surah recitations
+        if: ${{ !cancelled() && steps.sync.outputs.surah_recitations != '' && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECITATIONS: ${{ steps.sync.outputs.surah_recitations }}
+        run: gh workflow run mirror-audio.yml --ref "$GITHUB_REF_NAME" -f kind=surah -f recitations="$RECITATIONS"
 
       - name: Summary
         if: always()
