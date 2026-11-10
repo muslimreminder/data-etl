@@ -16,7 +16,7 @@ Apps never call the sources: they read the CDN (`manifest.json`, then the hashed
 | Surah introductions | [QUL surah info](https://qul.tarteel.ai/resources/surah-info) `surah-info-<lang>.json` files, downloaded by hand | en, ur, ml, id, it |
 | Tafsirs | [QUL tafsir](https://qul.tarteel.ai/resources/tafsir) JSON files, downloaded by hand | ar ×2, en ×2, fr, ru ×3, sq |
 | Quran recitations | [QUL recitation](https://qul.tarteel.ai/resources/recitation) ayah-by-ayah files, downloaded by hand; the audio itself from the CDNs those files point to | ar ×7 |
-| Quran surah recitations | [QUL audio API](https://qul.tarteel.ai/api/v1/audio/surah_recitations) (public, surah by surah); the audio from the CDNs it points to | ar ×94 |
+| Quran surah recitations | [QUL audio API](https://qul.tarteel.ai/api/v1/audio/surah_recitations) (public, surah by surah); the audio from the CDNs it points to | ar ×93 |
 
 ### sunnah.com data snapshot (hybrid)
 

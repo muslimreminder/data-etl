@@ -55,7 +55,8 @@ const taraweeh = (mosque: 'madinah' | 'makkah', year: number): QulSurahRecitatio
  * Published recitations, in catalog order: every complete Hafs recitation of the QUL audio API, minus
  * the ones mixed with a spoken translation, the children's repeat editions, the other riwayat (the
  * mushaf and the timings of the apps are Hafs) and the duplicates (an archived or lower quality copy
- * of a recording already listed).
+ * of a recording already listed). Left out too: Abu Bakr Dhaby (QUL 178), whose audio files the
+ * source CDN does not serve (404).
  */
 export const QUL_SURAH_RECITATIONS: QulSurahRecitation[] = [
     // Timed verse by verse and word by word.
@@ -103,7 +104,6 @@ export const QUL_SURAH_RECITATIONS: QulSurahRecitation[] = [
     hafs(172, 'toure', 'Hady Toure'),
     hafs(176, 'alijon-qori', 'Alijon Qori'),
     hafs(177, 'al-turki', 'Badr Al-Turki'),
-    hafs(178, 'dhaby', 'Abu Bakr Dhaby', { label: '2020' }),
     // Played as whole surahs.
     hafs(167, 'al-huthaify', 'Ali Abdur-Rahman al-Huthaify'),
     hafs(22, 'ayyoob', 'Muhammad Ayyoob'),
