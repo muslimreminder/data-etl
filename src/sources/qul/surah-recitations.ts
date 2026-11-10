@@ -174,6 +174,23 @@ export const RawQulSurahRecitationDetailSchema = z.object({
 export type RawQulSurahRecitationDetail = z.infer<typeof RawQulSurahRecitationDetailSchema>;
 
 /**
+ * The `[word, start, end]` of a verse. QUL sometimes sends them as a JSON string, adds a metadata object
+ * (`[15, 1057069, 1058525, { "waqaf": true }]`) or cuts one short (`[9, 211249]`): the string is parsed,
+ * the extra items dropped, and a segment without its three numbers left out.
+ */
+const WordSegmentsSchema = z
+    .union([z.array(z.unknown()), z.string(), z.null()])
+    .optional()
+    .transform((value): number[][] => {
+        const list = typeof value === 'string' ? (JSON.parse(value) as unknown) : value;
+        if (!Array.isArray(list)) return [];
+        return list
+            .filter((segment): segment is unknown[] => Array.isArray(segment))
+            .map((segment) => segment.slice(0, 3))
+            .filter((segment): segment is number[] => segment.length === 3 && segment.every((item) => typeof item === 'number' && Number.isFinite(item)));
+    });
+
+/**
  * `GET /surah_segments/{id}?surah={s}`: the verses of a surah, keyed `surah:verse`, located in its
  * audio file. `segments` are `[word, start, end]`, every time in milliseconds from the start of the file.
  */
@@ -184,7 +201,7 @@ export const RawQulSurahSegmentsSchema = z.object({
         z.object({
             time_from: OptionalNumberSchema,
             time_to: OptionalNumberSchema,
-            segments: z.array(z.array(z.number()).min(3)).nullable().optional(),
+            segments: WordSegmentsSchema,
         }),
     ),
 });
@@ -263,7 +280,9 @@ function toVerseTimings(surah: number, raw: RawQulSurahSegments | undefined, war
             return null;
         }
         previous = from;
-        const words = toWordTimings((verse.segments ?? []).map(([word, start, end]) => [word!, start!, end!] as const));
+        // A word timed `[w, 0, 0]` inside a verse that starts later is a word QUL could not place.
+        const segments = verse.segments.filter(([, start, end]) => !(start === 0 && end === 0 && from > 0));
+        const words = toWordTimings(segments.map(([word, start, end]) => [word!, start!, end!] as const));
         return { from, to, words };
     });
     if (dropped > 0) warn(`surah ${surah}: ${dropped} verse(s) out of order, played without following them`);
